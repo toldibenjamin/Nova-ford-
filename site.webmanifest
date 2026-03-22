@@ -1,0 +1,18 @@
+{
+  "name": "Nova Fordító",
+  "short_name": "Nova Fordító",
+  "lang": "hu",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#06101e",
+  "theme_color": "#06101e",
+  "description": "Modern webes fordító szöveg- és képfordítással.",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

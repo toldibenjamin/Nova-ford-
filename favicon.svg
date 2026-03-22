@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Nova Fordító ikon">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7bf2d6" />
+      <stop offset="100%" stop-color="#2cb9d8" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="#102133" />
+  <rect x="10" y="10" width="108" height="108" rx="26" fill="none" stroke="url(#g)" stroke-width="2" opacity="0.55" />
+  <path d="M36 90V38h12l32 34V38h12v52H80L48 56v34z" fill="url(#g)" />
+</svg>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova Fordító | Modern webes fordító</title>
+  <meta name="application-name" content="Nova Fordító">
+  <meta
+    name="description"
+    content="Modern webes fordító sötét témával, gyors beállításokkal és valós idejű fordítási lehetőséggel."
+  >
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+  <meta name="theme-color" content="#06101e">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="hu_HU">
+  <meta property="og:title" content="Nova Fordító">
+  <meta property="og:description" content="Modern webes fordító szöveg- és képfordítással, témaváltással és gyors kezelőfelülettel.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Nova Fordító">
+  <meta name="twitter:description" content="Modern webes fordító szöveg- és képfordítással, témaváltással és gyors kezelőfelülettel.">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Nova Fordító">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="background-layer" aria-hidden="true">
+    <div class="background-layer__mesh"></div>
+    <div class="background-layer__orb background-layer__orb--a"></div>
+    <div class="background-layer__orb background-layer__orb--b"></div>
+    <div class="background-layer__orb background-layer__orb--c"></div>
+  </div>
+
+  <div class="page-shell">
+    <header class="topbar panel">
+      <div class="brand">
+        <div class="brand__mark">N</div>
+        <div class="brand__stack">
+          <div>
+            <p class="eyebrow">Modern szövegfordító</p>
+            <h1>Nova Fordító</h1>
+          </div>
+
+          <div class="mode-switch" role="tablist" aria-label="Fordítási módok">
+            <button id="mode-text" class="mode-chip is-active" type="button" role="tab" aria-selected="true">
+              Szöveg
+            </button>
+            <button id="mode-image" class="mode-chip" type="button" role="tab" aria-selected="false">
+              Képek
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar__actions">
+        <div id="status-pill" class="status-pill" aria-live="polite">Kész a fordításra</div>
+        <button id="theme-cycle" class="icon-button" type="button" aria-label="Téma gyorsváltása">
+          Téma
+        </button>
+        <button id="settings-toggle" class="icon-button icon-button--accent" type="button" aria-haspopup="dialog" aria-controls="settings-drawer">
+          Beállítások
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="text-mode-panel" class="translator panel">
+        <div class="translator__toolbar">
+          <div class="language-row">
+            <label class="language-field" for="source-language">
+              <span>Forrásnyelv</span>
+              <select id="source-language" name="source-language" data-searchable-language></select>
+            </label>
+
+            <button id="swap-languages" class="swap-button" type="button" aria-label="Nyelvek felcserélése">
+              Csere
+            </button>
+
+            <label class="language-field" for="target-language">
+              <span>Célnyelv</span>
+              <select id="target-language" name="target-language" data-searchable-language></select>
+            </label>
+          </div>
+
+          <button id="translate-button" class="primary-button" type="button">
+            Fordítás
+          </button>
+        </div>
+
+        <div class="translator__panes">
+          <section class="pane pane--input">
+            <div class="pane__header">
+              <div>
+                <p class="pane__label">Forrásszöveg</p>
+                <h3>Mit szeretnél lefordítani?</h3>
+              </div>
+
+              <div class="pane__actions">
+                <button id="paste-input" class="text-button" type="button">Beillesztés</button>
+                <button id="clear-input" class="text-button" type="button">Törlés</button>
+              </div>
+            </div>
+
+            <label class="sr-only" for="source-text">Forrásszöveg</label>
+            <textarea
+              id="source-text"
+              rows="10"
+              maxlength="4000"
+              placeholder="Írj vagy illessz be szöveget. Ha az automatikus fordítás aktív, már gépelés közben is frissül az eredmény."
+            ></textarea>
+
+            <div class="pane__footer">
+              <span id="source-counter">0 karakter</span>
+              <span id="detected-language" class="hint">Automatikus felismerés készen áll</span>
+            </div>
+          </section>
+
+          <section class="pane pane--output">
+            <div class="pane__header">
+              <div>
+                <p class="pane__label">Fordítás</p>
+                <h3>Kész szöveg</h3>
+              </div>
+
+              <div class="pane__actions">
+                <button id="copy-output" class="text-button" type="button">Másolás</button>
+                <button id="speak-output" class="text-button" type="button">Felolvasás</button>
+              </div>
+            </div>
+
+            <div class="translation-output-wrap">
+              <div id="translated-text" class="translation-output" aria-live="polite">
+                Itt jelenik meg a lefordított szöveg.
+              </div>
+              <button id="copy-output-floating" class="floating-copy-button" type="button" aria-label="A fordított szöveg másolása">
+                Másolás
+              </button>
+            </div>
+
+            <div class="pane__footer">
+              <span id="translation-meta">Válassz nyelvet, majd kezdd el a szöveget.</span>
+              <span id="connection-state" class="hint">Publikus fordító szolgáltatásokkal</span>
+            </div>
+          </section>
+        </div>
+
+      </section>
+
+      <section id="image-mode-panel" class="translator translator--image panel" hidden>
+        <div class="translator__toolbar">
+          <div class="language-row">
+            <label class="language-field" for="image-source-language">
+              <span>Forrásnyelv</span>
+              <select id="image-source-language" name="image-source-language" data-searchable-language></select>
+            </label>
+
+            <button id="image-swap-languages" class="swap-button" type="button" aria-label="Nyelvek felcserélése">
+              Csere
+            </button>
+
+            <label class="language-field" for="image-target-language">
+              <span>Célnyelv</span>
+              <select id="image-target-language" name="image-target-language" data-searchable-language></select>
+            </label>
+          </div>
+
+          <button id="run-image-translation" class="primary-button" type="button">
+            Kép fordítása
+          </button>
+        </div>
+
+        <div class="image-workspace">
+          <section id="image-dropzone" class="image-dropzone">
+            <input id="image-input" type="file" accept="image/*" hidden>
+
+            <div id="image-dropzone-empty" class="image-dropzone__empty">
+              <p class="pane__label">Képek</p>
+              <h3>Illessz be vagy tölts fel egy képet.</h3>
+              <p class="image-dropzone__copy">
+                Húzd ide a képet, illeszd be vágólapról, vagy válassz egy fájlt.
+                A rendszer kiolvassa a rajta lévő szöveget, majd lefordítja.
+              </p>
+
+              <div class="image-dropzone__actions">
+                <button id="pick-image" class="secondary-button" type="button">Kép választása</button>
+                <button id="paste-image" class="secondary-button" type="button">Kép beillesztése</button>
+              </div>
+            </div>
+
+            <div id="image-dropzone-filled" class="image-dropzone__filled" hidden>
+              <div class="image-dropzone__top">
+                <div>
+                  <p class="pane__label">Betöltött kép</p>
+                  <h3>A kép készen áll a képen belüli fordításhoz.</h3>
+                </div>
+
+                <div class="image-dropzone__actions">
+                  <button id="replace-image" class="text-button" type="button">Másik kép</button>
+                  <button id="remove-image" class="text-button" type="button">Törlés</button>
+                </div>
+              </div>
+
+              <div class="image-preview-stage">
+                <img id="image-preview" class="image-preview" alt="Betöltött kép előnézete">
+                <canvas id="image-translated-canvas" class="image-preview image-preview--canvas" hidden></canvas>
+                <button id="copy-image-to-clipboard" class="floating-image-copy-button" type="button" aria-label="Kép másolása a vágólapra">
+                  Másolás
+                </button>
+              </div>
+
+              <div id="image-result-actions" class="image-result-actions" hidden>
+                <button id="show-original-image" class="text-button" type="button">Eredeti</button>
+                <button id="show-translated-image" class="text-button text-button--accent" type="button">Fordított kép</button>
+                <a id="download-translated-image" class="text-button text-button--accent" href="#" download="fordított-kép.png">Letöltés</a>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <div id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <button id="settings-overlay" class="settings-drawer__overlay" type="button" aria-label="Beállítások bezárása"></button>
+
+    <aside class="settings-panel panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-panel__header">
+        <div>
+          <p class="eyebrow">Testreszabás</p>
+          <h2 id="settings-title">Beállítások</h2>
+        </div>
+        <button id="settings-close" class="icon-button" type="button" aria-label="Beállítások bezárása">
+          X
+        </button>
+      </div>
+
+      <section class="settings-group">
+        <div class="settings-group__heading">
+          <h3>Megjelenés</h3>
+          <p>Válaszd ki, hogyan nézzen ki az alkalmazás.</p>
+        </div>
+
+        <div class="segmented-control" id="theme-control" role="group" aria-label="Téma beállítás">
+          <button class="segment" type="button" data-theme-option="light">Világos</button>
+          <button class="segment" type="button" data-theme-option="dark">Sötét</button>
+        </div>
+      </section>
+
+      <section class="settings-group">
+        <div class="settings-group__heading">
+          <h3>Fordítás</h3>
+        </div>
+
+        <label class="toggle-row" for="setting-live-translate">
+          <span>
+            <strong>Automatikus fordítás</strong>
+            <small>Gépelés közben magától frissíti az eredményt.</small>
+          </span>
+          <input id="setting-live-translate" type="checkbox">
+        </label>
+
+      </section>
+
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
