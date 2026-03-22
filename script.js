@@ -58,7 +58,7 @@ const el = {
   sourceText: q("#source-text"), translatedText: q("#translated-text"), sourceCounter: q("#source-counter"), detectedLanguage: q("#detected-language"),
   correctionInput: document.querySelector("#text-correction-view #correction-input"), correctionCounter: document.querySelector("#text-correction-view #correction-counter"), correctedText: document.querySelector("#text-correction-view #corrected-text"), correctionMeta: document.querySelector("#text-correction-view #correction-meta"),
   translationMeta: q("#translation-meta"), connectionState: q("#connection-state"), status: q("#status-pill"),
-  translate: q("#translate-button"), swap: q("#swap-languages"), paste: q("#paste-input"), mic: q("#voice-input"), clear: q("#clear-input"), speak: q("#speak-output"), copyFloat: q("#copy-output-floating"), runCorrection: q("#run-correction"), runCorrectionInline: q("#run-correction-inline"), pasteCorrection: document.querySelector("#text-correction-view #paste-correction"), clearCorrection: document.querySelector("#text-correction-view #clear-correction"), copyCorrection: document.querySelector("#text-correction-view #copy-corrected-floating"),
+  translate: q("#translate-button"), swap: q("#swap-languages"), mic: q("#voice-input"), clear: q("#clear-input"), speak: q("#speak-output"), copyFloat: q("#copy-output-floating"), runCorrection: q("#run-correction"), clearCorrection: document.querySelector("#text-correction-view #clear-correction"), copyCorrection: document.querySelector("#text-correction-view #copy-corrected-floating"),
   optionAccents: q("#option-accents"), optionSpelling: q("#option-spelling"), optionPunctuation: q("#option-punctuation"), optionStyle: q("#option-style"),
   imageSwap: q("#image-swap-languages"), imageRun: q("#run-image-translation"), imageInput: q("#image-input"), imageDropzone: q("#image-dropzone"), imageEmpty: q("#image-dropzone-empty"), imageFilled: q("#image-dropzone-filled"), imagePreview: q("#image-preview"), imageCanvas: q("#image-translated-canvas"), pickImage: q("#pick-image"), pasteImage: q("#paste-image"), replaceImage: q("#replace-image"), removeImage: q("#remove-image"), imageActions: q("#image-result-actions"), showOriginalImage: q("#show-original-image"), showTranslatedImage: q("#show-translated-image"), downloadImage: q("#download-translated-image"), copyImage: q("#copy-image-to-clipboard"),
   docSwap: q("#document-swap-languages"), docRun: q("#run-document-translation"), docInput: q("#document-input"), docDropzone: q("#document-dropzone"), docEmpty: q("#document-dropzone-empty"), docFilled: q("#document-dropzone-filled"), pickDoc: q("#pick-document"), replaceDoc: q("#replace-document"), removeDoc: q("#remove-document"), docFileName: q("#document-file-name"), docSourceText: q("#document-source-text"), docTranslatedText: q("#document-translated-text"), docMeta: q("#document-translation-meta"), copyDoc: q("#copy-document-output"), downloadDoc: q("#download-document-output"),
@@ -99,7 +99,7 @@ function bind() {
   on(el.sourceText, "input", () => { updateCounter(); updateHint(); scheduleTranslate(); });
   on(el.source, "change", () => { updateHint(); scheduleTranslate(); }); on(el.target, "change", () => scheduleTranslate());
   on(el.translate, "click", () => void runTranslate(true)); on(el.swap, "click", swapText); on(el.paste, "click", pasteText); on(el.clear, "click", clearText); on(el.mic, "click", () => setStatus("A mikrofon funkci\u00F3 most ki van kapcsolva", "error")); on(el.copyFloat, "click", () => copyText(renderedText())); on(el.copyCorrection, "click", () => copyText(renderedCorrectionText())); on(el.speak, "click", speakText);
-  on(el.correctionInput, "input", () => { updateCorrectionCounter(); scheduleCorrection(); }); on(el.correctionSource, "change", () => scheduleCorrection(true)); on(el.pasteCorrection, "click", pasteCorrectionText); on(el.clearCorrection, "click", clearCorrectionText); on(el.runCorrection, "click", () => void runCorrection(true)); on(el.runCorrectionInline, "click", () => void runCorrection(true));
+  on(el.correctionInput, "input", () => { updateCorrectionCounter(); scheduleCorrection(); }); on(el.correctionSource, "change", () => scheduleCorrection(true)); on(el.clearCorrection, "click", clearCorrectionText); on(el.runCorrection, "click", () => void runCorrection(true));
   [el.optionAccents, el.optionSpelling, el.optionPunctuation, el.optionStyle].forEach(node => on(node, "change", () => scheduleCorrection(true)));
   on(el.imageSwap, "click", () => swapSelects(el.imageSource, el.imageTarget, true)); on(el.pickImage, "click", () => el.imageInput.click()); on(el.replaceImage, "click", () => el.imageInput.click()); on(el.removeImage, "click", clearImage); on(el.imageInput, "change", e => { const f = [...(e.target.files || [])][0]; if (f) void setImage(f); }); on(el.pasteImage, "click", pasteImageFromClipboard); on(el.imageRun, "click", () => void runImageTranslate()); on(el.showOriginalImage, "click", () => showImage(false)); on(el.showTranslatedImage, "click", () => showImage(true)); on(el.copyImage, "click", () => void copyCurrentImage());
   on(el.imageDropzone, "dragover", e => e.preventDefault()); on(el.imageDropzone, "drop", e => { e.preventDefault(); const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith("image/")); if (f) void setImage(f); });
@@ -124,8 +124,12 @@ function buildLanguages() { return LANGS.map(code => ({ code, label: label(code)
 function fill(select, langs, allowAuto, value) { select.innerHTML = langs.filter(x => allowAuto || x.code !== "auto").map(x => `<option value="${x.code}">${x.label}</option>`).join(""); select.value = value; syncSearchableSelect(select); renderSearchableOptions(select, ""); }
 function label(code) { if (OVERRIDES[code]) return OVERRIDES[code]; if (!NAMES) return code.toUpperCase(); try { const c = code === "pb" ? "pt-BR" : code === "zt" ? "zh-Hant" : code; const n = NAMES.of(c); return n ? n.charAt(0).toLocaleUpperCase("hu-HU") + n.slice(1) : code.toUpperCase(); } catch { return code.toUpperCase(); } }
 
+function searchableSelects() {
+  return document.querySelectorAll("select[data-searchable-language], select[data-searchable-ui]");
+}
+
 function setupLanguageSelects() {
-  document.querySelectorAll("select[data-searchable-language]").forEach(select => {
+  searchableSelects().forEach(select => {
     if (!select._searchable) createSearchableSelect(select);
     renderSearchableOptions(select, "");
     syncSearchableSelect(select);
@@ -134,9 +138,13 @@ function setupLanguageSelects() {
 
 function createSearchableSelect(select) {
   select.classList.add("language-native-select");
+  const mode = select.dataset.searchableUi || (select.hasAttribute("data-searchable-language") ? "search" : "basic");
+  const showSearch = mode !== "basic";
+  const aiValue = select.hasAttribute("data-searchable-language") ? "auto" : "";
 
   const wrapper = document.createElement("div");
   wrapper.className = "language-select";
+  if (!showSearch) wrapper.classList.add("language-select--basic");
 
   const trigger = document.createElement("button");
   trigger.type = "button";
@@ -163,24 +171,28 @@ function createSearchableSelect(select) {
   panel.className = "language-select__panel";
   panel.hidden = true;
 
-  const search = document.createElement("input");
-  search.type = "search";
-  search.className = "language-select__search";
-  search.placeholder = "Nyelv keres\u00E9se";
-  search.autocomplete = "off";
-  search.spellcheck = false;
+  let search = null;
+  if (showSearch) {
+    search = document.createElement("input");
+    search.type = "search";
+    search.className = "language-select__search";
+    search.placeholder = select.dataset.searchablePlaceholder || "Nyelv keres\u00E9se";
+    search.autocomplete = "off";
+    search.spellcheck = false;
+  }
 
   const options = document.createElement("div");
   options.className = "language-select__options";
   options.setAttribute("role", "listbox");
 
-  panel.append(search, options);
+  if (search) panel.append(search);
+  panel.append(options);
 
   const parent = select.parentNode;
   parent.insertBefore(wrapper, select);
   wrapper.append(select, trigger, panel);
 
-  select._searchable = { wrapper, trigger, triggerLabel, triggerAi, panel, search, options };
+  select._searchable = { wrapper, trigger, triggerLabel, triggerAi, panel, search, options, showSearch, aiValue };
 
   on(trigger, "click", event => {
     event.preventDefault();
@@ -188,24 +200,26 @@ function createSearchableSelect(select) {
     else openSearchableSelect(select);
   });
 
-  on(search, "input", () => renderSearchableOptions(select, search.value));
-  on(search, "keydown", event => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeSearchableSelect(select);
-      trigger.focus();
-    }
-  });
+  if (search) {
+    on(search, "input", () => renderSearchableOptions(select, search.value));
+    on(search, "keydown", event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSearchableSelect(select);
+        trigger.focus();
+      }
+    });
+  }
 
   on(select, "change", () => {
     syncSearchableSelect(select);
-    renderSearchableOptions(select, search.value);
+    renderSearchableOptions(select, search?.value || "");
   });
 }
 
 function renderSearchableOptions(select, query) {
   if (!select?._searchable) return;
-  const { options } = select._searchable;
+  const { options, aiValue } = select._searchable;
   const searchTerm = normalizeSearch(query);
   const matches = [...select.options].filter(option => !option.disabled && normalizeSearch(option.textContent).includes(searchTerm));
 
@@ -230,7 +244,7 @@ function renderSearchableOptions(select, query) {
     optionLabel.textContent = option.textContent;
     button.append(optionLabel);
 
-    if (option.value === "auto") {
+    if (aiValue && option.value === aiValue) {
       const optionAi = document.createElement("span");
       optionAi.className = "language-select__option-ai";
       optionAi.textContent = "AI";
@@ -255,22 +269,24 @@ function syncSearchableSelect(select) {
   if (!select?._searchable) return;
   const selectedOption = select.options[select.selectedIndex];
   select._searchable.triggerLabel.textContent = selectedOption ? selectedOption.textContent : "";
-  select._searchable.triggerAi.hidden = !selectedOption || selectedOption.value !== "auto";
+  select._searchable.triggerAi.hidden = !select._searchable.aiValue || !selectedOption || selectedOption.value !== select._searchable.aiValue;
 }
 
 function openSearchableSelect(select) {
   if (!select?._searchable) return;
   closeAllSearchableSelects(select);
-  const { wrapper, trigger, panel, search } = select._searchable;
+  const { wrapper, trigger, panel, search, showSearch } = select._searchable;
   renderSearchableOptions(select, "");
-  search.value = "";
+  if (search) search.value = "";
   wrapper.classList.add("is-open");
   panel.hidden = false;
   trigger.setAttribute("aria-expanded", "true");
-  requestAnimationFrame(() => {
-    search.focus({ preventScroll: true });
-    search.select();
-  });
+  if (showSearch && search) {
+    requestAnimationFrame(() => {
+      search.focus({ preventScroll: true });
+      search.select();
+    });
+  }
 }
 
 function closeSearchableSelect(select) {
@@ -279,11 +295,11 @@ function closeSearchableSelect(select) {
   wrapper.classList.remove("is-open");
   panel.hidden = true;
   trigger.setAttribute("aria-expanded", "false");
-  search.value = "";
+  if (search) search.value = "";
 }
 
 function closeAllSearchableSelects(except = null) {
-  document.querySelectorAll("select[data-searchable-language]").forEach(select => {
+  searchableSelects().forEach(select => {
     if (select !== except) closeSearchableSelect(select);
   });
 }
@@ -316,7 +332,7 @@ function resetText() { el.translatedText.textContent = PLACEHOLDER_TEXT; el.tran
 function renderedText() { const text = el.translatedText.textContent.trim(); return text === PLACEHOLDER_TEXT ? "" : text; }
 function renderedCorrectionText() { const text = String(el.correctedText?.textContent || "").trim(); return text === PLACEHOLDER_CORRECTION ? "" : text; }
 function resetCorrectionEditor() { if (!el.correctionInput || !el.correctionCounter) return; el.correctionInput.value = ""; updateCorrectionCounter(); resetCorrection(); }
-function resetCorrection() { if (!el.correctedText || !el.correctionMeta) return; el.correctedText.textContent = PLACEHOLDER_CORRECTION; el.correctedText.classList.remove("is-loading", "is-fresh"); el.correctionMeta.textContent = "Pontok, vessz\u0151k, sz\u00F3k\u00F6z\u00F6k \u00E9s nagybet\u0171k automatikus jav\u00EDt\u00E1sa."; }
+function resetCorrection() { if (!el.correctedText) return; el.correctedText.textContent = PLACEHOLDER_CORRECTION; el.correctedText.classList.remove("is-loading", "is-fresh"); if (el.correctionMeta) el.correctionMeta.textContent = "Pontok, vessz\u0151k, sz\u00F3k\u00F6z\u00F6k \u00E9s nagybet\u0171k automatikus jav\u00EDt\u00E1sa."; }
 function updateCorrectionCounter() { if (!el.correctionCounter || !el.correctionInput) return; const raw = el.correctionInput.value; const trimmed = raw.trim(); el.correctionCounter.textContent = `${raw.length} karakter / ${trimmed ? trimmed.split(/\s+/).length : 0} sz\u00F3`; }
 function getCorrectionOptions() {
   return {
@@ -330,7 +346,7 @@ function hasActiveCorrectionOption(options) {
   return !!(options.accents || options.spelling || options.punctuation || options.style);
 }
 function updateCorrection() {
-  if (!el.correctedText || !el.correctionMeta) return;
+  if (!el.correctedText) return;
   const raw = el.correctionInput?.value || "";
   const text = raw.trim();
   if (!text) return resetCorrection();
@@ -345,8 +361,8 @@ function scheduleCorrection(immediate = false) {
   const delay = immediate ? 0 : 320;
   state.correctionTimer = window.setTimeout(() => void runCorrection(false), delay);
 }
-function setCorrectionLoading(loading, message = "Nyelvi jav\u00EDt\u00E1s folyamatban...") { if (!el.correctedText || !el.correctionMeta) return; el.correctedText.classList.toggle("is-loading", loading); if (loading) el.correctionMeta.textContent = message; }
-function renderCorrectionResult(text, meta) { if (!el.correctedText || !el.correctionMeta) return; el.correctedText.textContent = text; el.correctedText.classList.remove("is-loading", "is-fresh"); void el.correctedText.offsetWidth; el.correctedText.classList.add("is-fresh"); el.correctionMeta.textContent = meta; }
+function setCorrectionLoading(loading, message = "Nyelvi jav\u00EDt\u00E1s folyamatban...") { if (!el.correctedText) return; el.correctedText.classList.toggle("is-loading", loading); if (loading && el.correctionMeta) el.correctionMeta.textContent = message; }
+function renderCorrectionResult(text, meta) { if (!el.correctedText) return; el.correctedText.textContent = text; el.correctedText.classList.remove("is-loading", "is-fresh"); void el.correctedText.offsetWidth; el.correctedText.classList.add("is-fresh"); if (el.correctionMeta) el.correctionMeta.textContent = meta; }
 async function runCorrection(forceAi = false) {
   const raw = el.correctionInput?.value || "";
   const text = raw.trim();
@@ -360,15 +376,22 @@ async function runCorrection(forceAi = false) {
   const req = ++state.correctionReq;
   const lang = detectCorrectionLanguage(raw, el.correctionSource?.value || "auto");
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  const shouldUseAi = forceAi && text.length <= 6000 && wordCount >= 3;
+  const apiReady = canUseCorrectionApi();
+  const shouldUseAi = forceAi && apiReady && text.length <= 6000 && wordCount >= 3;
   if (text.length > 6000) {
     renderCorrectionResult(buildFallbackCorrectionText(raw, lang, options), `${label(lang)} / T\u00FAl hossz\u00FA sz\u00F6veg, alap jav\u00EDt\u00E1s`);
     setStatus("A sz\u00F6veg t\u00FAl hossz\u00FA, bontsd kisebb r\u00E9szekre", "error");
     return;
   }
   try {
+    if (forceAi && !apiReady) {
+      renderCorrectionResult(buildFallbackCorrectionText(raw, lang, options), `${label(lang)} / Helyi jav\u00EDt\u00E1s`);
+      setStatus("A teljes AI jav\u00EDt\u00E1s csak a k\u00F6zz\u00E9tett oldalon m\u0171k\u00F6dik, itt a helyi jav\u00EDt\u00E1s fut.", "error");
+      return;
+    }
+
     if (!shouldUseAi) {
-      renderCorrectionResult(buildFallbackCorrectionText(raw, lang, options), `${label(lang)} / Gyors el\u0151n\u00E9zet`);
+      renderCorrectionResult(buildFallbackCorrectionText(raw, lang, options), `${label(lang)} / Gyors el\u0151n\u00E9zet - kattints a Jav\u00EDt\u00E1s gombra az AI-hoz`);
       return;
     }
 
@@ -381,10 +404,22 @@ async function runCorrection(forceAi = false) {
     if (req !== state.correctionReq) return;
     const corrected = buildFallbackCorrectionText(raw, lang, options);
     renderCorrectionResult(corrected || PLACEHOLDER_CORRECTION, `${label(lang)} / Alap jav\u00EDt\u00E1s`);
-    setStatus(error?.message || "Az AI jav\u00EDt\u00E1s nem siker\u00FClt", "error");
+    setStatus(normalizeCorrectionError(error), "error");
   } finally {
     if (req === state.correctionReq) setCorrectionLoading(false);
   }
+}
+
+function canUseCorrectionApi() {
+  return typeof window !== "undefined" && /^(https?:)$/i.test(window.location.protocol);
+}
+
+function normalizeCorrectionError(error) {
+  const message = String(error?.message || "").trim();
+  if (!message) return "Az AI jav\u00EDt\u00E1s nem siker\u00FClt";
+  if (/failed to fetch/i.test(message)) return "Nem siker\u00FClt el\u00E9rni az AI jav\u00EDt\u00E1st. A helyi jav\u00EDt\u00E1s l\u00E1tszik.";
+  if (/quota|billing|plan/i.test(message)) return "Az OpenAI keret vagy fizet\u00E9s most nem el\u00E9rhet\u0151. A helyi jav\u00EDt\u00E1s l\u00E1tszik.";
+  return message;
 }
 function clearText() { state.req += 1; el.sourceText.value = ""; updateCounter(); updateHint(); resetText(); }
 function clearCorrectionText() { if (!el.correctionInput) return; el.correctionInput.value = ""; updateCorrectionCounter(); resetCorrection(); setStatus("Jav\u00EDtand\u00F3 sz\u00F6veg t\u00F6r\u00F6lve", "success"); }
@@ -394,7 +429,6 @@ function scheduleTranslate() { if (!state.settings.liveTranslate) return; clearT
 async function runTranslate(force) { const text = el.sourceText.value.trim(); if (!text) return resetText(); if (!force && !state.settings.liveTranslate) return; const req = ++state.req; setLoading(true); setStatus("Ford\u00EDt\u00E1s folyamatban", "busy"); try { const result = await translateLarge(text, el.source.value, el.target.value); if (req !== state.req) return; state.lastDetected = result.detectedLanguage || state.lastDetected; el.translatedText.textContent = result.translatedText || PLACEHOLDER_TEXT; el.translatedText.classList.remove("is-loading", "is-fresh"); void el.translatedText.offsetWidth; el.translatedText.classList.add("is-fresh"); el.translationMeta.textContent = `${label(result.detectedLanguage || el.source.value)} -> ${label(el.target.value)} / ${result.service}`; el.connectionState.textContent = `Friss\u00EDtve: ${time(new Date())}`; updateHint(); setStatus("Ford\u00EDt\u00E1s k\u00E9sz", "success"); } catch { if (req !== state.req) return; el.translatedText.textContent = "A ford\u00EDt\u00E1s most nem \u00E9rhet\u0151 el. Pr\u00F3b\u00E1ld meg k\u00E9s\u0151bb \u00FAjra."; el.translationMeta.textContent = "Nem siker\u00FClt el\u00E9rni a ford\u00EDt\u00F3 szolg\u00E1ltat\u00E1st."; el.connectionState.textContent = "Kapcsol\u00F3d\u00E1si hiba"; setStatus("Ford\u00EDt\u00E1si hiba", "error"); } finally { if (req === state.req) setLoading(false); } }
 function setLoading(loading) { el.translate.disabled = loading; el.translate.textContent = loading ? "Ford\u00EDt\u00E1s..." : "Ford\u00EDt\u00E1s"; el.translatedText.classList.toggle("is-loading", loading); }
 async function pasteText() { try { const text = await navigator.clipboard.readText(); if (!text) return setStatus("A v\u00E1g\u00F3lap most \u00FCres", "error"); el.sourceText.value = text; updateCounter(); updateHint(); scheduleTranslate(); setStatus("Sz\u00F6veg beillesztve", "success"); } catch { setStatus("A beilleszt\u00E9s nem siker\u00FClt", "error"); } }
-async function pasteCorrectionText() { try { const text = await navigator.clipboard.readText(); if (!text) return setStatus("A v\u00E1g\u00F3lap most \u00FCres", "error"); el.correctionInput.value = text; updateCorrectionCounter(); scheduleCorrection(true); setStatus("Sz\u00F6veg beillesztve", "success"); } catch { setStatus("A beilleszt\u00E9s nem siker\u00FClt", "error"); } }
 async function copyText(text) { const value = String(text || "").trim(); if (!value) return setStatus("Nincs mit m\u00E1solni", "error"); try { await navigator.clipboard.writeText(value); setStatus("Kim\u00E1solva a v\u00E1g\u00F3lapra", "success"); } catch { const t = document.createElement("textarea"); t.value = value; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); setStatus("Kim\u00E1solva a v\u00E1g\u00F3lapra", "success"); } catch { setStatus("A m\u00E1sol\u00E1s nem siker\u00FClt", "error"); } finally { t.remove(); } } }
 function speakText() { const text = renderedText(); if (!text) return setStatus("M\u00E9g nincs leford\u00EDtott sz\u00F6veg", "error"); if (!("speechSynthesis" in window)) return setStatus("A felolvas\u00E1s itt nem t\u00E1mogatott", "error"); const u = new SpeechSynthesisUtterance(text); u.lang = { hu: "hu-HU", en: "en-US", de: "de-DE", fr: "fr-FR", es: "es-ES", it: "it-IT" }[el.target.value] || navigator.language || "hu-HU"; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); setStatus("Felolvas\u00E1s elind\u00EDtva", "success"); }
 

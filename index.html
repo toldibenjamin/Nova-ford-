@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css?v=20260322-1410">
+  <link rel="stylesheet" href="styles.css?v=20260322-1648">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -76,11 +76,12 @@
     </header>
 
     <main class="workspace">
+      <div class="workspace-main">
       <section id="text-mode-panel" class="translator panel">
         <div class="text-submode-bar">
           <label class="text-submode-field" for="text-submode-select">
             <span>Sz&#246;veg m&#243;d</span>
-            <select id="text-submode-select" name="text-submode-select">
+            <select id="text-submode-select" name="text-submode-select" data-searchable-ui="basic" data-searchable-placeholder="Mód keresése">
               <option value="translate">Ford&#237;t&#225;s</option>
               <option value="correct">Sz&#246;veg jav&#237;t&#225;sa</option>
             </select>
@@ -119,7 +120,6 @@
               </div>
 
               <div class="pane__actions">
-                <button id="paste-input" class="text-button" type="button">Beillesztés</button>
                 <button id="voice-input" class="text-button" type="button" aria-pressed="false">Mikrofon</button>
                 <button id="clear-input" class="text-button" type="button">Törlés</button>
               </div>
@@ -233,9 +233,7 @@
                 </div>
 
               <div class="pane__actions">
-                  <button id="paste-correction" class="text-button" type="button">Beilleszt&#233;s</button>
                   <button id="clear-correction" class="text-button" type="button">T&#246;rl&#233;s</button>
-                  <button id="run-correction-inline" class="text-button text-button--accent" type="button">Jav&#237;t&#225;s</button>
                 </div>
               </div>
 
@@ -249,12 +247,12 @@
 
               <div class="pane__footer">
                 <span id="correction-counter">0 karakter</span>
-                <span class="hint">Automatikus jav&#237;t&#225;s akt&#237;v</span>
+                <span class="hint">Gyors el&#337;n&#233;zet akt&#237;v, a teljes AI jav&#237;t&#225;shoz nyomd meg a Jav&#237;t&#225;s gombot</span>
               </div>
             </section>
 
             <section class="pane pane--output">
-              <div class="pane__header pane__header--compact">
+              <div class="pane__header">
                 <div>
                   <p class="pane__label">&#205;r&#225;sjel jav&#237;t&#225;s</p>
                   <h3>Jav&#237;tott sz&#246;veg</h3>
@@ -270,9 +268,6 @@
                 </button>
               </div>
 
-              <p id="correction-meta" class="correction-meta">
-                Pontok, vessz&#337;k, sz&#243;k&#246;z&#246;k &#233;s nagybet&#369;k automatikus jav&#237;t&#225;sa.
-              </p>
             </section>
           </div>
         </div>
@@ -449,7 +444,59 @@
           </section>
         </div>
       </section>
-</main>
+      </div>
+      <aside class="workspace-side" aria-label="Kapcsolat blokk">
+      <section class="contact-dock" aria-label="Elérhetőség">
+        <div class="contact-card panel">
+          <div class="contact-card__glow" aria-hidden="true"></div>
+          <div class="contact-card__header">
+            <p class="eyebrow">Kapcsolat</p>
+          </div>
+
+          <div class="contact-list">
+            <a
+              class="contact-item contact-item--instagram"
+              href="https://www.instagram.com/toldi_benjamin_/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram megnyitása: @toldi_benjamin_"
+            >
+              <span class="contact-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                  <path d="M7.5 3h9A4.5 4.5 0 0 1 21 7.5v9a4.5 4.5 0 0 1-4.5 4.5h-9A4.5 4.5 0 0 1 3 16.5v-9A4.5 4.5 0 0 1 7.5 3Zm0 1.8A2.7 2.7 0 0 0 4.8 7.5v9a2.7 2.7 0 0 0 2.7 2.7h9a2.7 2.7 0 0 0 2.7-2.7v-9a2.7 2.7 0 0 0-2.7-2.7h-9Zm9.45 1.35a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.8A3.2 3.2 0 1 0 12 15.2 3.2 3.2 0 0 0 12 8.8Z"></path>
+                </svg>
+              </span>
+
+              <span class="contact-item__body">
+                <span class="contact-item__label">Instagram</span>
+                <strong class="contact-item__value">@toldi_benjamin_</strong>
+              </span>
+
+              <span class="contact-item__external" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                  <path d="M14 5h5v5h-1.8V8.07l-6.96 6.97-1.28-1.28 6.97-6.96H14V5ZM7 7h4v1.8H8.8v6.4h6.4V13H17v4H7V7Z"></path>
+                </svg>
+              </span>
+            </a>
+
+            <a class="contact-item" href="mailto:toldibenjamin@gmail.com" aria-label="Email küldése: toldibenjamin@gmail.com">
+              <span class="contact-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="img" focusable="false">
+                  <path d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm0 2v.24l8 5.34 8-5.34V8H4Zm16 8V10.4l-7.44 4.96a1 1 0 0 1-1.12 0L4 10.4V16h16Z"></path>
+                </svg>
+              </span>
+
+              <span class="contact-item__body">
+                <span class="contact-item__label">Email</span>
+                <strong class="contact-item__value">toldibenjamin@gmail.com</strong>
+              </span>
+            </a>
+
+          </div>
+        </div>
+      </section>
+      </aside>
+    </main>
 
   </div>
 
@@ -498,7 +545,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js?v=20260322-1410"></script>
+  <script src="script.js?v=20260322-1648"></script>
 </body>
 </html>
 
