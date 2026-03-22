@@ -27,6 +27,12 @@ const LANGUAGE_LOCALES = { hu: "hu-HU", en: "en-US", de: "de-DE", fr: "fr-FR", e
 const LT_LANG_MAP = { auto: "auto", hu: "hu-HU", en: "en-US", de: "de-DE", fr: "fr-FR", es: "es", it: "it", pt: "pt-PT", pb: "pt-BR", nl: "nl", pl: "pl-PL", ru: "ru-RU", uk: "uk-UA", ro: "ro-RO", sk: "sk-SK", sl: "sl-SI", sv: "sv-SE", da: "da-DK", el: "el-GR", ca: "ca-ES" };
 const MIC_SILENCE_MS = 4500;
 const MIC_PERMISSION_TIMEOUT_MS = 9000;
+const MIC_START_TIMEOUT_MS = 2600;
+const MIC_MAX_BLOB_BYTES = 24 * 1024 * 1024;
+const MIC_RECORDER_SLICE_MS = 350;
+const MIC_VOLUME_SAMPLE_MS = 180;
+const MIC_VOLUME_THRESHOLD = 9;
+const MIC_TRANSCRIBE_ENDPOINT = "/api/transcribe-audio";
 const HU_WORD_FIXES = {
   "en": "\u00E9n", "es": "\u00E9s", "itt": "itt", "szoveg": "sz\u00F6veg", "szoveget": "sz\u00F6veget", "szovegben": "sz\u00F6vegben",
   "javitasa": "jav\u00EDt\u00E1sa", "javitani": "jav\u00EDtani", "javitott": "jav\u00EDtott", "fordito": "ford\u00EDt\u00F3",
@@ -70,7 +76,33 @@ const el = {
 
 const state = {
   settings: loadSettings(), mode: "text", textSubmode: "translate", timer: 0, correctionTimer: 0, req: 0, correctionReq: 0, imageReq: 0, docReq: 0, lastDetected: "",
-  mic: { recognition: null, supported: false, listening: false, processing: false, mergeMode: "append", baseText: "", finalText: "", interimText: "", silenceTimer: 0, lastError: "", deviceLabel: "", ignoreAbortError: false, silentEnd: false, startToken: 0 },
+  mic: {
+    recognition: null,
+    supported: false,
+    listening: false,
+    processing: false,
+    mergeMode: "append",
+    baseText: "",
+    finalText: "",
+    interimText: "",
+    silenceTimer: 0,
+    lastError: "",
+    deviceLabel: "",
+    ignoreAbortError: false,
+    silentEnd: false,
+    startToken: 0,
+    engine: "",
+    stream: null,
+    recorder: null,
+    recorderChunks: [],
+    recorderMimeType: "",
+    startTimeout: 0,
+    volumeTimer: 0,
+    audioContext: null,
+    analyser: null,
+    analyserSource: null,
+    lastVoiceAt: 0
+  },
   image: { file: null, dataUrl: "", translatedDataUrl: "" },
   doc: { file: null, text: "", translatedText: "", downloadUrl: "" }
 };
@@ -155,6 +187,65 @@ function setMicDeviceBadge(label) {
   el.micDeviceBadge.textContent = value;
 }
 
+function clearMicStartTimeout() {
+  if (!state.mic.startTimeout) return;
+  clearTimeout(state.mic.startTimeout);
+  state.mic.startTimeout = 0;
+}
+
+function clearMicVolumeMonitor() {
+  if (state.mic.volumeTimer) {
+    clearTimeout(state.mic.volumeTimer);
+    state.mic.volumeTimer = 0;
+  }
+
+  try { state.mic.analyserSource?.disconnect(); } catch {}
+  try { state.mic.analyser?.disconnect?.(); } catch {}
+  try { state.mic.audioContext?.close?.(); } catch {}
+
+  state.mic.audioContext = null;
+  state.mic.analyser = null;
+  state.mic.analyserSource = null;
+}
+
+function stopMicStream() {
+  state.mic.stream?.getTracks?.().forEach(track => track.stop());
+  state.mic.stream = null;
+  clearMicVolumeMonitor();
+}
+
+function canUseRecorderFallback() {
+  return typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+}
+
+function getRecorderMimeType() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg"
+  ];
+  return candidates.find(type => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function buildMicSourceLanguage() {
+  const selected = String(el.source?.value || "auto").toLowerCase();
+  return selected === "auto" ? "" : selected;
+}
+
+async function blobToBase64(blob) {
+  const buffer = await blob.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 function syncMicModeButtons() {
   const appendActive = state.mic.mergeMode !== "replace";
   if (el.micModeAppend) {
@@ -170,14 +261,14 @@ function syncMicModeButtons() {
 function refreshMicUi() {
   if (!el.mic) return;
 
-  const supported = !!getSpeechRecognitionCtor();
+  const supported = !!getSpeechRecognitionCtor() || canUseRecorderFallback();
   state.mic.supported = supported;
   const enabledHere = canUseMicHere();
   if (el.micTranslateNow) el.micTranslateNow.disabled = !String(el.sourceText?.value || "").trim();
 
   el.mic.classList.toggle("is-recording", state.mic.listening);
   el.mic.classList.toggle("is-processing", state.mic.processing);
-  el.mic.disabled = !enabledHere || state.mic.processing;
+  el.mic.disabled = !enabledHere;
   el.mic.setAttribute("aria-pressed", String(state.mic.listening));
   el.mic.textContent = state.mic.listening ? "Leállítás" : (state.mic.processing ? "Feldolgozás..." : "Mikrofon");
 
@@ -267,7 +358,7 @@ async function ensureMicPermission() {
   if (!navigator.mediaDevices?.getUserMedia) {
     state.mic.deviceLabel = "";
     setMicDeviceBadge("");
-    return { ok: true };
+    return { ok: true, stream: null };
   }
 
   const permissionState = await queryMicPermissionState();
@@ -286,8 +377,9 @@ async function ensureMicPermission() {
     ]);
     state.mic.deviceLabel = await detectMicDeviceLabel();
     setMicDeviceBadge(state.mic.deviceLabel);
-    return { ok: true };
+    return { ok: true, stream };
   } catch (error) {
+    stream?.getTracks?.().forEach(track => track.stop());
     if (String(error?.message || "") === "__mic_permission_timeout__") {
       return {
         ok: false,
@@ -303,8 +395,285 @@ async function ensureMicPermission() {
       return { ok: false, local: "Nincs mikrofon", message: "Nem találtam elérhető mikrofont" };
     }
     return { ok: false, local: "Mikrofon hiba", message: "A mikrofon engedélykérése nem sikerült" };
+    if (name === "NotReadableError" || name === "TrackStartError") {
+      return { ok: false, local: "Mikrofon foglalt", message: "A mikrofont most egy mĂˇsik alkalmazĂˇs hasznĂˇlja" };
+    }
   } finally {
     stream?.getTracks().forEach(track => track.stop());
+  }
+}
+
+async function transcribeMicBlob(blob, sourceLanguage) {
+  if (location.protocol === "file:") {
+    throw new Error("A biztosabb hangfelismer\u00e9s csak a k\u00f6zz\u00e9tett oldalon m\u0171k\u00f6dik.");
+  }
+
+  const response = await fetch(MIC_TRANSCRIBE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      audio_base64: await blobToBase64(blob),
+      mime_type: blob.type || "audio/webm",
+      source_language: sourceLanguage || ""
+    })
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("A hangfelismer\u0151 API m\u00e9g nincs felt\u00f6ltve a szerverre.");
+    }
+    throw new Error(data?.error || "A hangfelismer\u00e9s most nem \u00e9rhet\u0151 el.");
+  }
+
+  const text = String(data?.text || "").trim();
+  if (!text) throw new Error("Nem hallottam \u00e9rthet\u0151 besz\u00e9det.");
+  return text;
+}
+
+function clearMicStartTimeout() {
+  if (!state.mic.startTimeout) return;
+  clearTimeout(state.mic.startTimeout);
+  state.mic.startTimeout = 0;
+}
+
+function clearMicVolumeMonitor() {
+  if (state.mic.volumeTimer) {
+    clearTimeout(state.mic.volumeTimer);
+    state.mic.volumeTimer = 0;
+  }
+  try { state.mic.analyserSource?.disconnect(); } catch {}
+  try { state.mic.analyser?.disconnect?.(); } catch {}
+  try { state.mic.audioContext?.close?.(); } catch {}
+  state.mic.audioContext = null;
+  state.mic.analyser = null;
+  state.mic.analyserSource = null;
+}
+
+function stopMicStream() {
+  state.mic.stream?.getTracks?.().forEach(track => track.stop());
+  state.mic.stream = null;
+  clearMicVolumeMonitor();
+}
+
+function buildMicSourceLanguage() {
+  const selected = String(el.source?.value || "auto").toLowerCase();
+  return selected === "auto" ? "" : selected;
+}
+
+function canUseRecorderFallback() {
+  return typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+}
+
+function getRecorderMimeType() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg"
+  ];
+  return candidates.find(type => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+function startMicVolumeMonitor(stream) {
+  clearMicVolumeMonitor();
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx || !stream) return;
+
+  try {
+    const audioContext = new AudioCtx();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    state.mic.audioContext = audioContext;
+    state.mic.analyser = analyser;
+    state.mic.analyserSource = source;
+    state.mic.lastVoiceAt = Date.now();
+
+    const buffer = new Uint8Array(analyser.fftSize);
+    const sample = () => {
+      if (state.mic.engine !== "recorder" || !state.mic.listening || !state.mic.analyser) return;
+      analyser.getByteTimeDomainData(buffer);
+      let energy = 0;
+      for (let i = 0; i < buffer.length; i += 1) energy += Math.abs(buffer[i] - 128);
+      const average = energy / buffer.length;
+      if (average >= MIC_VOLUME_THRESHOLD) state.mic.lastVoiceAt = Date.now();
+      if (Date.now() - state.mic.lastVoiceAt >= MIC_SILENCE_MS) {
+        stopMicCapture("Csend ut\u00e1n feldolgozom...");
+        return;
+      }
+      state.mic.volumeTimer = window.setTimeout(sample, MIC_VOLUME_SAMPLE_MS);
+    };
+
+    state.mic.volumeTimer = window.setTimeout(sample, MIC_VOLUME_SAMPLE_MS);
+  } catch {}
+}
+
+function armMicStartTimeout(token) {
+  clearMicStartTimeout();
+  state.mic.startTimeout = window.setTimeout(() => {
+    if (token !== state.mic.startToken) return;
+    if (state.mic.listening || !state.mic.processing || state.mic.engine !== "speech-pending") return;
+    state.mic.ignoreAbortError = true;
+    state.mic.engine = "recorder-starting";
+    setMicStatusState("processing", "Biztons\u00e1gi m\u00f3d indul");
+    setStatus("A b\u00f6ng\u00e9sz\u0151s felismer\u0151 nem indult el, \u00e1tv\u00e1ltok biztosabb m\u00f3dra", "busy");
+    try { state.mic.recognition?.abort?.(); } catch {}
+    void startMicRecorder(token, true);
+  }, MIC_START_TIMEOUT_MS);
+}
+
+async function startMicRecorder(token, fromFallback = false) {
+  if (!canUseRecorderFallback()) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    setMicStatusState("error", "Nincs t\u00e1mogat\u00e1s");
+    setStatus("Ebben a b\u00f6ng\u00e9sz\u0151ben nincs el\u00e9rhet\u0151 mikrofonos tartal\u00e9k m\u00f3d", "error");
+    return false;
+  }
+
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    state.mic.deviceLabel = await detectMicDeviceLabel();
+    setMicDeviceBadge(state.mic.deviceLabel);
+  } catch (error) {
+    const name = String(error?.name || "");
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+      setMicStatusState("error", "Enged\u00e9ly megtagadva");
+      setStatus("A mikrofon enged\u00e9ly\u00e9t elutas\u00edtottad", "error");
+    } else {
+      setMicStatusState("error", "Mikrofon hiba");
+      setStatus("A hangfelv\u00e9tel nem ind\u00edthat\u00f3 el", "error");
+    }
+    return false;
+  }
+
+  const mimeType = getRecorderMimeType();
+  try {
+    state.mic.stream = stream;
+    state.mic.recorderMimeType = mimeType || "audio/webm";
+    state.mic.recorderChunks = [];
+    state.mic.engine = "recorder";
+    state.mic.listening = true;
+    state.mic.processing = false;
+    state.mic.ignoreAbortError = false;
+    state.mic.lastError = "";
+    refreshMicUi();
+    setMicStatusState("listening", "Hallgatlak...");
+    setStatus(fromFallback ? "Felv\u00e9tel folyamatban, biztons\u00e1gi m\u00f3dban" : "Felv\u00e9tel folyamatban", "busy");
+
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    state.mic.recorder = recorder;
+    recorder.ondataavailable = event => {
+      if (event.data && event.data.size) state.mic.recorderChunks.push(event.data);
+    };
+    recorder.onerror = () => {
+      stopMicStream();
+      state.mic.recorder = null;
+      state.mic.processing = false;
+      state.mic.listening = false;
+      state.mic.engine = "";
+      state.mic.lastError = "Mikrofon hiba";
+      refreshMicUi();
+      setMicStatusState("error", "Mikrofon hiba");
+      setStatus("A hangfelv\u00e9tel nem indult el rendesen", "error");
+    };
+    recorder.onstop = () => { void handleRecorderStop(token); };
+    recorder.start(MIC_RECORDER_SLICE_MS);
+    startMicVolumeMonitor(stream);
+    return true;
+  } catch {
+    stopMicStream();
+    state.mic.processing = false;
+    state.mic.listening = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    setMicStatusState("error", "Mikrofon hiba");
+    setStatus("A hangfelv\u00e9tel most nem ind\u00edthat\u00f3 el", "error");
+    return false;
+  }
+}
+
+async function handleRecorderStop(token) {
+  clearMicStartTimeout();
+  clearMicVolumeMonitor();
+
+  const chunks = [...state.mic.recorderChunks];
+  const mimeType = state.mic.recorderMimeType || "audio/webm";
+  state.mic.recorderChunks = [];
+  state.mic.recorder = null;
+  state.mic.ignoreAbortError = false;
+  state.mic.listening = false;
+  state.mic.processing = true;
+  refreshMicUi();
+  setMicStatusState("processing", "Feldolgoz\u00e1s");
+  setStatus("Hang feldolgoz\u00e1sa", "busy");
+
+  const blob = new Blob(chunks, { type: mimeType });
+  stopMicStream();
+
+  if (token !== state.mic.startToken) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    return;
+  }
+
+  if (!blob.size) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    setMicStatusState("error", "Nem hallottam besz\u00e9det");
+    setStatus("Nem hallottam \u00e9rthet\u0151 besz\u00e9det, pr\u00f3b\u00e1ld meg \u00fajra", "error");
+    return;
+  }
+
+  if (blob.size > MIC_MAX_BLOB_BYTES) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    setMicStatusState("error", "T\u00fal hossz\u00fa hang");
+    setStatus("T\u00fal hossz\u00fa lett a felv\u00e9tel, pr\u00f3b\u00e1ld meg r\u00f6videbben", "error");
+    return;
+  }
+
+  try {
+    const text = await transcribeMicBlob(blob, buildMicSourceLanguage());
+    if (token !== state.mic.startToken) return;
+    const language = normalizeDetectedLanguage(buildMicSourceLanguage(), buildMicSourceLanguage() || "auto", text) || "hu";
+    state.mic.finalText = formatMicChunk(text, language, state.mic.baseText);
+    state.mic.interimText = "";
+    applyMicTranscriptToSource();
+    state.mic.baseText = el.sourceText?.value || "";
+    state.mic.finalText = "";
+    state.mic.processing = false;
+    state.mic.engine = "";
+    refreshMicUi();
+    setMicStatusState("ready", "Mikrofon k\u00e9sz");
+    setStatus("Besz\u00e9d felismerve", "success");
+    if (state.settings.liveTranslate && canUseMicHere()) void runTranslate(true);
+  } catch (error) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    state.mic.lastError = "Mikrofon hiba";
+    refreshMicUi();
+    setMicStatusState("error", "Mikrofon hiba");
+    setStatus(error?.message || "A hangfelismer\u00e9s most nem \u00e9rhet\u0151 el", "error");
   }
 }
 
@@ -354,6 +723,9 @@ function applyMicTranscriptToSource() {
 }
 
 function handleMicStart() {
+  clearMicStartTimeout();
+  stopMicStream();
+  state.mic.engine = "speech";
   state.mic.listening = true;
   state.mic.processing = false;
   state.mic.lastError = "";
@@ -410,23 +782,30 @@ function handleMicError(event) {
     return;
   }
 
+  clearMicStartTimeout();
+  stopMicStream();
   resetMicSilenceTimer();
   const normalized = normalizeMicError(event?.error);
   state.mic.lastError = normalized.local;
   state.mic.listening = false;
   state.mic.processing = false;
+  state.mic.engine = "";
   refreshMicUi();
   setMicStatusState("error", normalized.local);
   setStatus(normalized.message, "error");
 }
 
 function handleMicEnd() {
+  clearMicStartTimeout();
+  if (state.mic.engine === "recorder-starting" || state.mic.engine === "recorder") return;
+  stopMicStream();
   resetMicSilenceTimer();
   const silentEnd = state.mic.silentEnd;
   const hadError = !!state.mic.lastError;
   const hadText = !!String(state.mic.finalText || "").trim();
   state.mic.listening = false;
   state.mic.processing = false;
+  state.mic.engine = "";
   state.mic.interimText = "";
   state.mic.ignoreAbortError = false;
   state.mic.silentEnd = false;
@@ -454,14 +833,20 @@ function handleMicEnd() {
 }
 
 function cancelMicCapture(quiet = false) {
+  clearMicStartTimeout();
   resetMicSilenceTimer();
   state.mic.ignoreAbortError = true;
   state.mic.silentEnd = quiet;
-  if (state.mic.recognition && (state.mic.listening || state.mic.processing)) {
+  if (state.mic.recorder && (state.mic.listening || state.mic.processing)) {
+    try { state.mic.recorder.stop(); } catch {}
+  }
+  if (state.mic.recognition && (state.mic.listening || state.mic.processing || state.mic.engine === "speech-pending")) {
     try { state.mic.recognition.abort(); } catch {}
   }
+  stopMicStream();
   state.mic.listening = false;
   state.mic.processing = false;
+  state.mic.engine = "";
   state.mic.lastError = "";
   state.mic.finalText = "";
   state.mic.interimText = "";
@@ -473,7 +858,21 @@ function cancelMicCapture(quiet = false) {
 }
 
 function stopMicCapture(message = "Feldolgozás...") {
+  clearMicStartTimeout();
   resetMicSilenceTimer();
+  if (state.mic.engine === "recorder" && state.mic.recorder && state.mic.listening) {
+    state.mic.listening = false;
+    state.mic.processing = true;
+    refreshMicUi();
+    setMicStatusState("processing", "Feldolgozás");
+    setStatus(message, "busy");
+    try {
+      state.mic.recorder.stop();
+    } catch {
+      void handleRecorderStop(state.mic.startToken);
+    }
+    return;
+  }
   if (!state.mic.recognition || !state.mic.listening) return;
   state.mic.listening = false;
   state.mic.processing = true;
@@ -488,8 +887,14 @@ function stopMicCapture(message = "Feldolgozás...") {
 }
 
 function cancelPendingMicRequest() {
+  clearMicStartTimeout();
+  stopMicStream();
+  try { state.mic.recorder?.stop?.(); } catch {}
   state.mic.startToken += 1;
+  state.mic.recorder = null;
+  state.mic.recorderChunks = [];
   state.mic.processing = false;
+  state.mic.engine = "";
   state.mic.lastError = "";
   refreshMicUi();
   setMicStatusState("ready", "Mikrofon kész");
@@ -498,12 +903,6 @@ function cancelPendingMicRequest() {
 
 async function startMicCapture() {
   if (!canUseMicHere()) return;
-  if (!getSpeechRecognitionCtor()) {
-    setMicStatusState("error", "Nincs támogatás");
-    setStatus("A beszédfelismerés ebben a böngészőben nem támogatott", "error");
-    refreshMicUi();
-    return;
-  }
 
   if (!isSecureMicContext()) {
     setMicStatusState("error", "Csak HTTPS oldalon működik");
@@ -517,6 +916,7 @@ async function startMicCapture() {
   state.mic.baseText = el.sourceText?.value || "";
   state.mic.finalText = "";
   state.mic.interimText = "";
+  state.mic.engine = "";
   const token = ++state.mic.startToken;
   refreshMicUi();
   setMicStatusState("processing", "Mikrofon ellenőrzése");
@@ -533,21 +933,29 @@ async function startMicCapture() {
     return;
   }
 
+  if (!getSpeechRecognitionCtor()) {
+    await startMicRecorder(token, false);
+    return;
+  }
+
   const recognition = ensureMicRecognition();
   if (token !== state.mic.startToken) return;
   if (!recognition) {
-    state.mic.processing = false;
-    refreshMicUi();
-    setMicStatusState("error", "Nincs támogatás");
-    setStatus("A beszédfelismerés ebben a böngészőben nem támogatott", "error");
+    await startMicRecorder(token, false);
     return;
   }
 
   recognition.lang = buildMicLocale();
+  state.mic.engine = "speech-pending";
+  armMicStartTimeout(token);
   try {
     recognition.start();
   } catch {
+    clearMicStartTimeout();
+    await startMicRecorder(token, true);
+    if (state.mic.engine === "recorder") return;
     state.mic.processing = false;
+    state.mic.engine = "";
     refreshMicUi();
     setMicStatusState("error", "Mikrofon hiba");
     setStatus("A mikrofon most nem indítható újra, próbáld meg egy pillanat múlva", "error");
