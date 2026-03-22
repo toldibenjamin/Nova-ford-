@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260322-1244">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -56,6 +56,9 @@
             </button>
             <button id="mode-image" class="mode-chip" type="button" role="tab" aria-selected="false">
               Képek
+            </button>
+            <button id="mode-document" class="mode-chip" type="button" role="tab" aria-selected="false">
+              Dokumentumok
             </button>
           </div>
         </div>
@@ -106,6 +109,7 @@
 
               <div class="pane__actions">
                 <button id="paste-input" class="text-button" type="button">Beillesztés</button>
+                <button id="voice-input" class="text-button" type="button" aria-pressed="false">Mikrofon</button>
                 <button id="clear-input" class="text-button" type="button">Törlés</button>
               </div>
             </div>
@@ -115,7 +119,7 @@
               id="source-text"
               rows="10"
               maxlength="4000"
-              placeholder="Írj vagy illessz be szöveget. Ha az automatikus fordítás aktív, már gépelés közben is frissül az eredmény."
+              placeholder="Írj vagy illessz be szöveget. Ha az automatikus fordítás aktív, már gépelés közben is frissül a szöveg."
             ></textarea>
 
             <div class="pane__footer">
@@ -132,7 +136,6 @@
               </div>
 
               <div class="pane__actions">
-                <button id="copy-output" class="text-button" type="button">Másolás</button>
                 <button id="speak-output" class="text-button" type="button">Felolvasás</button>
               </div>
             </div>
@@ -226,7 +229,106 @@
           </section>
         </div>
       </section>
-    </main>
+
+      <section id="document-mode-panel" class="translator panel" hidden>
+        <div class="translator__toolbar">
+          <div class="language-row">
+            <label class="language-field" for="document-source-language">
+              <span>Forrásnyelv</span>
+              <select id="document-source-language" name="document-source-language" data-searchable-language></select>
+            </label>
+
+            <button id="document-swap-languages" class="swap-button" type="button" aria-label="Nyelvek felcserélése">
+              Csere
+            </button>
+
+            <label class="language-field" for="document-target-language">
+              <span>Célnyelv</span>
+              <select id="document-target-language" name="document-target-language" data-searchable-language></select>
+            </label>
+          </div>
+
+          <button id="run-document-translation" class="primary-button" type="button">
+            Dokumentum fordítása
+          </button>
+        </div>
+
+        <div class="document-workspace">
+          <section id="document-dropzone" class="document-dropzone">
+            <input
+              id="document-input"
+              type="file"
+              accept=".txt,.md,.html,.htm,.json,.csv,.xml,.srt,.vtt,text/plain,text/markdown,text/html,application/json,text/csv,application/xml,text/xml"
+              hidden
+            >
+
+            <div id="document-dropzone-empty" class="document-dropzone__empty">
+              <p class="pane__label">Dokumentumok</p>
+              <h3>Válassz egy szöveges fájlt.</h3>
+              <p class="document-dropzone__copy">
+                TXT, MD, HTML, CSV, JSON, XML, SRT és VTT formátumokat tudsz betölteni.
+                A rendszer beolvassa a szöveget, majd lefordítja.
+              </p>
+
+              <div class="document-dropzone__actions">
+                <button id="pick-document" class="secondary-button" type="button">Dokumentum választása</button>
+              </div>
+            </div>
+
+            <div id="document-dropzone-filled" class="document-dropzone__filled" hidden>
+              <div class="document-dropzone__top">
+                <div>
+                  <p class="pane__label">Betöltött dokumentum</p>
+                  <h3 id="document-file-name">Nincs kiválasztott fájl</h3>
+                </div>
+
+                <div class="document-dropzone__actions">
+                  <button id="replace-document" class="text-button" type="button">Másik fájl</button>
+                  <button id="remove-document" class="text-button" type="button">Törlés</button>
+                </div>
+              </div>
+
+              <div class="translator__panes translator__panes--document">
+                <section class="pane pane--input">
+                  <div class="pane__header">
+                    <div>
+                      <p class="pane__label">Forrásdokumentum</p>
+                      <h3>Kinyert szöveg</h3>
+                    </div>
+                  </div>
+
+                  <div id="document-source-text" class="translation-output translation-output--document" aria-live="polite">
+                    Itt jelenik meg a dokumentumból beolvasott szöveg.
+                  </div>
+                </section>
+
+                <section class="pane pane--output">
+                  <div class="pane__header">
+                    <div>
+                      <p class="pane__label">Fordítás</p>
+                      <h3>Kész dokumentum</h3>
+                    </div>
+
+                    <div class="pane__actions">
+                      <button id="copy-document-output" class="text-button" type="button">Másolás</button>
+                      <a id="download-document-output" class="text-button" href="#" download="fordított-dokumentum.txt">Letöltés</a>
+                    </div>
+                  </div>
+
+                  <div id="document-translated-text" class="translation-output translation-output--document" aria-live="polite">
+                    Itt jelenik meg a lefordított dokumentum.
+                  </div>
+                </section>
+              </div>
+
+              <p id="document-translation-meta" class="hint hint--left">
+                A dokumentum fordításának állapota itt jelenik meg.
+              </p>
+            </div>
+          </section>
+        </div>
+      </section>
+</main>
 
   </div>
 
@@ -275,6 +377,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js?v=20260322-1304"></script>
 </body>
 </html>
+
