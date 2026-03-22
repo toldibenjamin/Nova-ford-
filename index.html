@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css?v=20260322-1244">
+  <link rel="stylesheet" href="styles.css?v=20260322-1410">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -77,6 +77,17 @@
 
     <main class="workspace">
       <section id="text-mode-panel" class="translator panel">
+        <div class="text-submode-bar">
+          <label class="text-submode-field" for="text-submode-select">
+            <span>Sz&#246;veg m&#243;d</span>
+            <select id="text-submode-select" name="text-submode-select">
+              <option value="translate">Ford&#237;t&#225;s</option>
+              <option value="correct">Sz&#246;veg jav&#237;t&#225;sa</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="text-translate-view">
         <div class="translator__toolbar">
           <div class="language-row">
             <label class="language-field" for="source-language">
@@ -154,6 +165,116 @@
               <span id="connection-state" class="hint">Publikus fordító szolgáltatásokkal</span>
             </div>
           </section>
+        </div>
+
+        </div>
+
+        <section class="pane pane--correction text-helper-panel" hidden aria-hidden="true">
+          <div class="pane__header pane__header--compact">
+            <div>
+              <p class="pane__label">&#205;r&#225;sjel jav&#237;t&#225;s</p>
+              <h3>Jav&#237;tott sz&#246;veg</h3>
+            </div>
+          </div>
+
+          <div class="translation-output-wrap">
+            <div id="legacy-corrected-text" class="translation-output translation-output--correction" aria-live="polite">
+              Itt jelenik meg a jav&#237;tott sz&#246;veg.
+            </div>
+            <button id="legacy-copy-corrected-floating" class="floating-copy-button" type="button" aria-label="A javított szöveg másolása">
+              Másolás
+            </button>
+          </div>
+
+          <p id="legacy-correction-meta" class="correction-meta">
+            Pontok, vessz&#337;k, sz&#243;k&#246;z&#246;k &#233;s nagybet&#369;k automatikus jav&#237;t&#225;sa.
+          </p>
+        </section>
+
+        <div id="text-correction-view" hidden>
+          <div class="translator__toolbar translator__toolbar--single">
+            <div class="language-row language-row--single">
+              <label class="language-field" for="correction-source-language">
+                <span>Forr&#225;snyelv</span>
+                <select id="correction-source-language" name="correction-source-language" data-searchable-language></select>
+              </label>
+            </div>
+
+            <button id="run-correction" class="primary-button" type="button">
+              Jav&#237;t&#225;s
+            </button>
+          </div>
+
+          <div class="correction-options" aria-label="Javítási opciók">
+            <label class="segment correction-toggle">
+              <input id="option-accents" type="checkbox" checked>
+              <span>Csak &#233;kezetp&#243;tl&#225;s</span>
+            </label>
+            <label class="segment correction-toggle">
+              <input id="option-spelling" type="checkbox" checked>
+              <span>Teljes helyes&#237;r&#225;s-jav&#237;t&#225;s</span>
+            </label>
+            <label class="segment correction-toggle">
+              <input id="option-punctuation" type="checkbox" checked>
+              <span>&#205;r&#225;sjelek jav&#237;t&#225;sa</span>
+            </label>
+            <label class="segment correction-toggle">
+              <input id="option-style" type="checkbox">
+              <span>Finom stilisztikai sim&#237;t&#225;s</span>
+            </label>
+          </div>
+
+          <div class="translator__panes translator__panes--correction">
+            <section class="pane pane--input">
+              <div class="pane__header">
+                <div>
+                  <p class="pane__label">Sz&#246;veg jav&#237;t&#225;sa</p>
+                  <h3>Mit szeretn&#233;l kijav&#237;tani?</h3>
+                </div>
+
+              <div class="pane__actions">
+                  <button id="paste-correction" class="text-button" type="button">Beilleszt&#233;s</button>
+                  <button id="clear-correction" class="text-button" type="button">T&#246;rl&#233;s</button>
+                  <button id="run-correction-inline" class="text-button text-button--accent" type="button">Jav&#237;t&#225;s</button>
+                </div>
+              </div>
+
+              <label class="sr-only" for="correction-input">Jav&#237;tand&#243; sz&#246;veg</label>
+              <textarea
+                id="correction-input"
+                rows="10"
+                maxlength="4000"
+                placeholder="&#205;rd be ide a sz&#246;veget, &#233;s a m&#225;sik oldalon jav&#237;tva megjelenik."
+              ></textarea>
+
+              <div class="pane__footer">
+                <span id="correction-counter">0 karakter</span>
+                <span class="hint">Automatikus jav&#237;t&#225;s akt&#237;v</span>
+              </div>
+            </section>
+
+            <section class="pane pane--output">
+              <div class="pane__header pane__header--compact">
+                <div>
+                  <p class="pane__label">&#205;r&#225;sjel jav&#237;t&#225;s</p>
+                  <h3>Jav&#237;tott sz&#246;veg</h3>
+                </div>
+              </div>
+
+              <div class="translation-output-wrap">
+                <div id="corrected-text" class="translation-output translation-output--correction" aria-live="polite">
+                  Itt jelenik meg a jav&#237;tott sz&#246;veg.
+                </div>
+                <button id="copy-corrected-floating" class="floating-copy-button" type="button" aria-label="A javított szöveg másolása">
+                  Másolás
+                </button>
+              </div>
+
+              <p id="correction-meta" class="correction-meta">
+                Pontok, vessz&#337;k, sz&#243;k&#246;z&#246;k &#233;s nagybet&#369;k automatikus jav&#237;t&#225;sa.
+              </p>
+            </section>
+          </div>
         </div>
 
       </section>
@@ -377,7 +498,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js?v=20260322-1304"></script>
+  <script src="script.js?v=20260322-1410"></script>
 </body>
 </html>
 
