@@ -71,7 +71,7 @@ const el = {
   optionAccents: q("#option-accents"), optionSpelling: q("#option-spelling"), optionPunctuation: q("#option-punctuation"), optionStyle: q("#option-style"),
   imageSwap: q("#image-swap-languages"), imageRun: q("#run-image-translation"), imageInput: q("#image-input"), imageDropzone: q("#image-dropzone"), imageEmpty: q("#image-dropzone-empty"), imageFilled: q("#image-dropzone-filled"), imagePreview: q("#image-preview"), imageCanvas: q("#image-translated-canvas"), pickImage: q("#pick-image"), pasteImage: q("#paste-image"), replaceImage: q("#replace-image"), removeImage: q("#remove-image"), imageActions: q("#image-result-actions"), showOriginalImage: q("#show-original-image"), showTranslatedImage: q("#show-translated-image"), downloadImage: q("#download-translated-image"), copyImage: q("#copy-image-to-clipboard"),
   docSwap: q("#document-swap-languages"), docRun: q("#run-document-translation"), docInput: q("#document-input"), docDropzone: q("#document-dropzone"), docEmpty: q("#document-dropzone-empty"), docFilled: q("#document-dropzone-filled"), pickDoc: q("#pick-document"), replaceDoc: q("#replace-document"), removeDoc: q("#remove-document"), docFileName: q("#document-file-name"), docSourceText: q("#document-source-text"), docTranslatedText: q("#document-translated-text"), docMeta: q("#document-translation-meta"), copyDoc: q("#copy-document-output"), downloadDoc: q("#download-document-output"),
-  themeCycle: q("#theme-cycle"), settingsToggle: q("#settings-toggle"), settingsDrawer: q("#settings-drawer"), settingsOverlay: q("#settings-overlay"), settingsClose: q("#settings-close"), live: q("#setting-live-translate"), themeOptions: [...document.querySelectorAll("[data-theme-option]")]
+  themeCycle: q("#theme-cycle"), settingsToggle: q("#settings-toggle"), settingsDrawer: q("#settings-drawer"), settingsOverlay: q("#settings-overlay"), settingsClose: q("#settings-close"), live: q("#setting-live-translate"), themeOptions: [...document.querySelectorAll("[data-theme-option]")], contactEmail: document.querySelector('a[href="mailto:toldibenjamin@gmail.com"]')
 };
 
 const state = {
@@ -110,6 +110,10 @@ const state = {
 init();
 
 function init() {
+  if (el.micTranslateNow) {
+    el.micTranslateNow.remove();
+    el.micTranslateNow = null;
+  }
   populateSelects();
   setupLanguageSelects();
   bind();
@@ -142,6 +146,7 @@ function bind() {
   on(el.docSwap, "click", () => swapSelects(el.docSource, el.docTarget, true)); on(el.pickDoc, "click", () => el.docInput.click()); on(el.replaceDoc, "click", () => el.docInput.click()); on(el.removeDoc, "click", clearDoc); on(el.docInput, "change", e => { const f = [...(e.target.files || [])][0]; if (f) void setDoc(f); }); on(el.docDropzone, "dragover", e => e.preventDefault()); on(el.docDropzone, "drop", e => { e.preventDefault(); const f = [...(e.dataTransfer?.files || [])][0]; if (f) void setDoc(f); }); on(el.docRun, "click", () => void runDocTranslate()); on(el.copyDoc, "click", () => copyText(el.docTranslatedText.textContent.trim()));
   on(el.themeCycle, "click", cycleTheme); on(el.settingsToggle, "click", openSettings); on(el.settingsOverlay, "click", closeSettings); on(el.settingsClose, "click", closeSettings); on(el.live, "change", e => { state.settings.liveTranslate = !!e.target.checked; saveSettings(); applySettings(); if (state.settings.liveTranslate) scheduleTranslate(); });
   el.themeOptions.forEach(btn => on(btn, "click", () => { state.settings.theme = btn.dataset.themeOption === "light" ? "light" : "dark"; saveSettings(); applySettings(); }));
+  on(el.contactEmail, "click", event => { event.preventDefault(); copyText("toldibenjamin@gmail.com"); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAllSearchableSelects(); closeSettings(); } });
   document.addEventListener("click", e => { if (!(e.target instanceof Element) || e.target.closest(".language-select")) return; closeAllSearchableSelects(); });
   document.addEventListener("paste", e => { if (state.mode !== "image") return; const item = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith("image/")); const f = item ? item.getAsFile() : null; if (f) { e.preventDefault(); void setImage(f); } });
@@ -405,7 +410,7 @@ async function ensureMicPermission() {
 
 async function transcribeMicBlob(blob, sourceLanguage) {
   if (location.protocol === "file:") {
-    throw new Error("A biztosabb hangfelismer\u00e9s csak a k\u00f6zz\u00e9tett oldalon m\u0171k\u00f6dik.");
+    throw new Error("A biztosabb hangfelismer\u00e9s csak a k\u00f6zz\u00e9tett Vercel oldalon m\u0171k\u00f6dik.");
   }
 
   const response = await fetch(MIC_TRANSCRIBE_ENDPOINT, {
@@ -427,7 +432,10 @@ async function transcribeMicBlob(blob, sourceLanguage) {
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error("A hangfelismer\u0151 API m\u00e9g nincs felt\u00f6ltve a szerverre.");
+      throw new Error("A hangfelismer\u0151 API m\u00e9g nincs felt\u00f6ltve a szerverre. T\u00f6ltsd fel az api/transcribe-audio.js f\u00e1jlt.");
+    }
+    if (response.status === 500 && String(data?.error || "").includes("OPENAI_API_KEY")) {
+      throw new Error("Hi\u00e1nyzik az OPENAI_API_KEY a Vercelben, ez\u00e9rt a hangfelismer\u00e9s nem indul el.");
     }
     throw new Error(data?.error || "A hangfelismer\u00e9s most nem \u00e9rhet\u0151 el.");
   }
@@ -465,6 +473,48 @@ function stopMicStream() {
 function buildMicSourceLanguage() {
   const selected = String(el.source?.value || "auto").toLowerCase();
   return selected === "auto" ? "" : selected;
+}
+
+async function probeMicTranscribeEndpoint() {
+  if (location.protocol === "file:") return { ok: false, reason: "local" };
+
+  try {
+    const response = await fetch(MIC_TRANSCRIBE_ENDPOINT, {
+      method: "GET",
+      cache: "no-store"
+    });
+    if (response.status === 404) return { ok: false, reason: "missing" };
+    return { ok: true, reason: "" };
+  } catch {
+    return { ok: false, reason: "unreachable" };
+  }
+}
+
+async function tryMicRecorderFallback(token, fromFallback = false) {
+  const probe = await probeMicTranscribeEndpoint();
+  if (token !== state.mic.startToken) return false;
+
+  if (!probe.ok) {
+    state.mic.processing = false;
+    state.mic.engine = "";
+    state.mic.lastError = "Mikrofon hiba";
+    refreshMicUi();
+
+    if (probe.reason === "local") {
+      setMicStatusState("error", "Nyisd a Vercel oldalt");
+      setStatus("A szerveres hangfelismerés a helyi index.html fájlból nem működik. Nyisd a közzétett oldalt.", "error");
+    } else if (probe.reason === "missing") {
+      setMicStatusState("error", "Hiányzik a hang API");
+      setStatus("A hangfelismerő API még nincs feltöltve a szerverre. Töltsd fel az api/transcribe-audio.js fájlt, aztán redeployolj.", "error");
+    } else {
+      setMicStatusState("error", "A hang API nem érhető el");
+      setStatus("A hangfelismerő végpont most nem érhető el. Ellenőrizd a Vercel deployt.", "error");
+    }
+
+    return false;
+  }
+
+  return startMicRecorder(token, fromFallback);
 }
 
 function canUseRecorderFallback() {
@@ -529,7 +579,7 @@ function armMicStartTimeout(token) {
     setMicStatusState("processing", "Biztons\u00e1gi m\u00f3d indul");
     setStatus("A b\u00f6ng\u00e9sz\u0151s felismer\u0151 nem indult el, \u00e1tv\u00e1ltok biztosabb m\u00f3dra", "busy");
     try { state.mic.recognition?.abort?.(); } catch {}
-    void startMicRecorder(token, true);
+    void tryMicRecorderFallback(token, true);
   }, MIC_START_TIMEOUT_MS);
 }
 
@@ -934,14 +984,14 @@ async function startMicCapture() {
   }
 
   if (!getSpeechRecognitionCtor()) {
-    await startMicRecorder(token, false);
+    await tryMicRecorderFallback(token, false);
     return;
   }
 
   const recognition = ensureMicRecognition();
   if (token !== state.mic.startToken) return;
   if (!recognition) {
-    await startMicRecorder(token, false);
+    await tryMicRecorderFallback(token, false);
     return;
   }
 
@@ -952,7 +1002,7 @@ async function startMicCapture() {
     recognition.start();
   } catch {
     clearMicStartTimeout();
-    await startMicRecorder(token, true);
+    await tryMicRecorderFallback(token, true);
     if (state.mic.engine === "recorder") return;
     state.mic.processing = false;
     state.mic.engine = "";
