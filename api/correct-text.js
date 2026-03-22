@@ -111,17 +111,20 @@ function hasActiveOption(options) {
 
 function buildSystemPrompt() {
   return [
-    "Te egy prec\u00EDz magyar AI sz\u00F6vegjav\u00EDt\u00F3 vagy.",
-    "A feladatod a kapott sz\u00F6veg jav\u00EDt\u00E1sa an\u00E9lk\u00FCl, hogy feleslegesen \u00E1tfogalmazn\u00E1d.",
-    "Tartsd meg az eredeti jelent\u00E9st, hangulatot \u00E9s szem\u00E9lyt.",
-    "Csak a k\u00E9rt m\u00E9rt\u00E9kben jav\u00EDts: \u00E9kezetek, helyes\u00EDr\u00E1s, \u00EDr\u00E1sjelek, nagybet\u0171k, finom st\u00EDlus.",
-    "A kimenet kiz\u00E1r\u00F3lag a jav\u00EDtott magyar sz\u00F6veg legyen JSON mez\u0151ben."
+    "Te egy prec\u00EDz, t\u00F6bbnyelv\u0171 AI sz\u00F6vegjav\u00EDt\u00F3 vagy.",
+    "A feladatod a kapott sz\u00F6veg helyes\u00EDr\u00E1si, \u00EDr\u00E1sjeli, nagybet\u0171z\u00E9si \u00E9s finom stilisztikai jav\u00EDt\u00E1sa.",
+    "Mindig azon a nyelven jav\u00EDts, amelyen a sz\u00F6veg \u00EDrva van.",
+    "Ne ford\u00EDtsd le a sz\u00F6veget m\u00E1s nyelvre.",
+    "Tartsd meg az eredeti jelent\u00E9st, hangulatot \u00E9s sz\u00F3haszn\u00E1latot, csak tedd helyess\u00E9 \u00E9s term\u00E9szetess\u00E9.",
+    "Ha a sz\u00F6veg magyar, p\u00F3told az \u00E9kezeteket is term\u00E9szetes magyar helyes\u00EDr\u00E1ssal.",
+    "Ne tal\u00E1lj ki \u00FAj tartalmat, \u00E9s ne fogalmazd \u00E1t feleslegesen.",
+    "A kimenet kiz\u00E1r\u00F3lag a jav\u00EDtott sz\u00F6veg legyen a JSON mez\u0151ben."
   ].join(" ");
 }
 
 function buildUserPrompt(text, sourceLanguage, options) {
   const modeLines = [
-    `Forr\u00E1snyelv: ${sourceLanguage}.`,
+    `Megadott forr\u00E1snyelv: ${describeLanguage(sourceLanguage)}.`,
     `Csak \u00E9kezetp\u00F3tl\u00E1s: ${options.accents ? "igen" : "nem"}.`,
     `Teljes helyes\u00EDr\u00E1s-jav\u00EDt\u00E1s: ${options.spelling ? "igen" : "nem"}.`,
     `\u00CDr\u00E1sjelek jav\u00EDt\u00E1sa: ${options.punctuation ? "igen" : "nem"}.`,
@@ -129,16 +132,46 @@ function buildUserPrompt(text, sourceLanguage, options) {
   ].join("\n");
 
   return [
-    "Jav\u00EDtsd ki az al\u00E1bbi magyar sz\u00F6veget.",
-    "P\u00F3told az \u00E9kezeteket, jav\u00EDtsd a helyes\u00EDr\u00E1st, \u00EDr\u00E1sjeleket \u00E9s a nagybet\u0171z\u00E9st, de a jelent\u00E9st ne v\u00E1ltoztasd meg, \u00E9s ne fogalmazd \u00E1t f\u00F6l\u00F6slegesen.",
-    "Ha a mondat magyarul term\u00E9szetesen t\u00F6bb vessz\u0151t vagy pontot ig\u00E9nyel, tedd bele.",
-    "A v\u00E1laszban csak a jav\u00EDtott v\u00E9geredm\u00E9nyt add vissza.",
+    "Jav\u00EDtsd ki az al\u00E1bbi sz\u00F6veget.",
+    "A jav\u00EDt\u00E1st ugyanazon a nyelven add vissza, amelyen a bemenet \u00EDrva van.",
+    "Ne ford\u00EDtsd le.",
+    "Jav\u00EDtsd a helyes\u00EDr\u00E1st, az \u00E9kezeteket, az \u00EDr\u00E1sjeleket, a nagybet\u0171z\u00E9st \u00E9s a nyelvtani hib\u00E1kat a bejel\u00F6lt opci\u00F3k szerint.",
+    "Ha a mondat term\u00E9szetesen t\u00F6bb vessz\u0151t, pontot vagy m\u00E1s \u00EDr\u00E1sjelet ig\u00E9nyel, tedd bele.",
+    "A jelent\u00E9st ne v\u00E1ltoztasd meg, \u00E9s ne fogalmazd \u00E1t f\u00F6l\u00F6slegesen.",
+    "Csak a jav\u00EDtott v\u00E9geredm\u00E9nyt add vissza.",
     "",
     modeLines,
     "",
     "Sz\u00F6veg:",
     text
   ].join("\n");
+}
+
+function describeLanguage(code) {
+  const value = String(code || "auto").toLowerCase();
+  const names = {
+    auto: "automatikus felismer\u00E9s",
+    hu: "magyar",
+    en: "angol",
+    de: "n\u00E9met",
+    fr: "francia",
+    es: "spanyol",
+    it: "olasz",
+    pt: "portug\u00E1l",
+    pb: "brazil portug\u00E1l",
+    nl: "holland",
+    pl: "lengyel",
+    ru: "orosz",
+    uk: "ukr\u00E1n",
+    ro: "rom\u00E1n",
+    sk: "szlov\u00E1k",
+    sl: "szlov\u00E9n",
+    sv: "sv\u00E9d",
+    da: "d\u00E1n",
+    el: "g\u00F6r\u00F6g",
+    ca: "katal\u00E1n"
+  };
+  return names[value] || value;
 }
 
 function extractCorrectedText(data) {
