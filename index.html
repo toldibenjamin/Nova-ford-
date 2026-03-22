@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css?v=20260322-1648">
+  <link rel="stylesheet" href="styles.css?v=20260322-1849">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -120,7 +120,7 @@
               </div>
 
               <div class="pane__actions">
-                <button id="voice-input" class="text-button" type="button" aria-pressed="false">Mikrofon</button>
+                <button id="voice-input" class="text-button text-button--mic" type="button" aria-pressed="false">Mikrofon</button>
                 <button id="clear-input" class="text-button" type="button">Törlés</button>
               </div>
             </div>
@@ -132,6 +132,29 @@
               maxlength="4000"
               placeholder="Írj vagy illessz be szöveget. Ha az automatikus fordítás aktív, már gépelés közben is frissül a szöveg."
             ></textarea>
+
+            <div class="mic-toolbar" aria-label="Mikrofon vezérlés">
+              <div class="mic-toolbar__top">
+                <div id="mic-status" class="mic-status" data-state="ready">
+                  <span class="mic-status__pulse" aria-hidden="true"></span>
+                  <span id="mic-status-text">Mikrofon kész</span>
+                  <span id="mic-device-badge" class="mic-device-badge" hidden></span>
+                </div>
+
+                <button id="mic-translate-now" class="text-button text-button--accent mic-toolbar__translate" type="button">
+                  Fordítás most
+                </button>
+              </div>
+
+              <div class="mic-toolbar__actions" aria-label="Mikrofon beillesztési mód">
+                <button id="mic-mode-append" class="segment mic-mode-chip is-active" type="button" aria-pressed="true">
+                  Hozzáfűzés
+                </button>
+                <button id="mic-mode-replace" class="segment mic-mode-chip" type="button" aria-pressed="false">
+                  Felülírás
+                </button>
+              </div>
+            </div>
 
             <div class="pane__footer">
               <span id="source-counter">0 karakter</span>
@@ -545,7 +568,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js?v=20260322-1648"></script>
+  <script src="script.js?v=20260322-1828"></script>
 </body>
 </html>
 
