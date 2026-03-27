@@ -1,4 +1,10 @@
 const STORAGE_KEY = "nova-fordito-settings";
+const HISTORY_STORAGE_KEY = "nova-fordito-history";
+const FAVORITES_STORAGE_KEY = "nova-fordito-favorites";
+const LANGUAGE_FAVORITES_STORAGE_KEY = "nova-fordito-language-favorites";
+const MAX_HISTORY_ITEMS = 14;
+const MAX_FAVORITES_ITEMS = 24;
+const HISTORY_SAVE_DELAY_MS = 1100;
 const ENDPOINTS = ["https://translate.argosopentech.com", "https://libretranslate.com"];
 const CORRECTION_ENDPOINT = "https://api.languagetool.org/v2/check";
 const PLACEHOLDER_TEXT = "Itt jelenik meg a leford\u00EDtott sz\u00F6veg.";
@@ -64,6 +70,8 @@ const el = {
   source: q("#source-language"), target: q("#target-language"), imageSource: q("#image-source-language"), imageTarget: q("#image-target-language"),
   docSource: q("#document-source-language"), docTarget: q("#document-target-language"), correctionSource: document.querySelector("#text-correction-view #correction-source-language"),
   sourceText: q("#source-text"), translatedText: q("#translated-text"), sourceCounter: q("#source-counter"), detectedLanguage: q("#detected-language"),
+  favoriteTranslation: q("#favorite-translation"), favoriteTranslationIcon: q("#favorite-translation-icon"), favoriteTranslationLabel: q("#favorite-translation-label"),
+  historyList: q("#history-list"), favoritesList: q("#favorites-list"), clearHistory: q("#clear-history"), clearFavorites: q("#clear-favorites"),
   micStatus: q("#mic-status"), micStatusText: q("#mic-status-text"), micDeviceBadge: q("#mic-device-badge"), micTranslateNow: q("#mic-translate-now"), micModeAppend: q("#mic-mode-append"), micModeReplace: q("#mic-mode-replace"),
   correctionInput: document.querySelector("#text-correction-view #correction-input"), correctionCounter: document.querySelector("#text-correction-view #correction-counter"), correctedText: document.querySelector("#text-correction-view #corrected-text"), correctionMeta: document.querySelector("#text-correction-view #correction-meta"),
   translationMeta: q("#translation-meta"), connectionState: q("#connection-state"), status: q("#status-pill"),
@@ -75,7 +83,10 @@ const el = {
 };
 
 const state = {
-  settings: loadSettings(), mode: "text", textSubmode: "translate", timer: 0, correctionTimer: 0, req: 0, correctionReq: 0, imageReq: 0, docReq: 0, lastDetected: "",
+  settings: loadSettings(), mode: "text", textSubmode: "translate", timer: 0, correctionTimer: 0, req: 0, correctionReq: 0, imageReq: 0, docReq: 0, lastDetected: "", historySaveTimer: 0,
+  history: loadMemoryList(HISTORY_STORAGE_KEY),
+  favorites: loadMemoryList(FAVORITES_STORAGE_KEY),
+  languageFavorites: loadLanguageFavorites(),
   mic: {
     recognition: null,
     supported: false,
@@ -126,6 +137,8 @@ function init() {
   resetDoc();
   updateCounter();
   updateHint();
+  renderMemoryPanels();
+  syncFavoriteButton();
   setTextSubmode("translate");
   initMicUi();
 }
@@ -136,8 +149,8 @@ function on(node, ev, fn) { if (node) node.addEventListener(ev, fn); }
 function bind() {
   on(el.modeText, "click", () => setMode("text")); on(el.modeImage, "click", () => setMode("image")); on(el.modeDocument, "click", () => setMode("document"));
   on(el.textSubmode, "change", e => setTextSubmode(e.target.value));
-  on(el.sourceText, "input", () => { updateCounter(); updateHint(); refreshMicUi(); scheduleTranslate(); });
-  on(el.source, "change", () => { updateHint(); scheduleTranslate(); }); on(el.target, "change", () => scheduleTranslate());
+  on(el.sourceText, "input", () => { updateCounter(); updateHint(); refreshMicUi(); syncFavoriteButton(); scheduleTranslate(); });
+  on(el.source, "change", () => { updateHint(); syncFavoriteButton(); scheduleTranslate(); }); on(el.target, "change", () => { syncFavoriteButton(); scheduleTranslate(); });
   on(el.translate, "click", () => void runTranslate(true)); on(el.swap, "click", swapText); on(el.clear, "click", clearText); on(el.mic, "click", () => void toggleMicCapture()); on(el.micTranslateNow, "click", () => void translateRecognizedTextNow()); on(el.copyFloat, "click", () => copyText(renderedText())); on(el.copyCorrection, "click", () => copyText(renderedCorrectionText())); on(el.speak, "click", speakText);
   on(el.correctionInput, "input", () => { updateCorrectionCounter(); scheduleCorrection(); }); on(el.correctionSource, "change", () => scheduleCorrection(true)); on(el.clearCorrection, "click", clearCorrectionText); on(el.runCorrection, "click", () => void runCorrection(true));
   [el.optionAccents, el.optionSpelling, el.optionPunctuation, el.optionStyle].forEach(node => on(node, "change", () => scheduleCorrection(true)));
@@ -146,6 +159,11 @@ function bind() {
   on(el.docSwap, "click", () => swapSelects(el.docSource, el.docTarget, true)); on(el.pickDoc, "click", () => el.docInput.click()); on(el.replaceDoc, "click", () => el.docInput.click()); on(el.removeDoc, "click", clearDoc); on(el.docInput, "change", e => { const f = [...(e.target.files || [])][0]; if (f) void setDoc(f); }); on(el.docDropzone, "dragover", e => e.preventDefault()); on(el.docDropzone, "drop", e => { e.preventDefault(); const f = [...(e.dataTransfer?.files || [])][0]; if (f) void setDoc(f); }); on(el.docRun, "click", () => void runDocTranslate()); on(el.copyDoc, "click", () => copyText(el.docTranslatedText.textContent.trim()));
   on(el.themeCycle, "click", cycleTheme); on(el.settingsToggle, "click", openSettings); on(el.settingsOverlay, "click", closeSettings); on(el.settingsClose, "click", closeSettings); on(el.live, "change", e => { state.settings.liveTranslate = !!e.target.checked; saveSettings(); applySettings(); if (state.settings.liveTranslate) scheduleTranslate(); });
   el.themeOptions.forEach(btn => on(btn, "click", () => { state.settings.theme = btn.dataset.themeOption === "light" ? "light" : "dark"; saveSettings(); applySettings(); }));
+  on(el.favoriteTranslation, "click", () => toggleCurrentFavorite());
+  on(el.clearHistory, "click", clearHistoryList);
+  on(el.clearFavorites, "click", clearFavoritesList);
+  on(el.historyList, "click", handleMemoryListClick);
+  on(el.favoritesList, "click", handleMemoryListClick);
   on(el.contactEmail, "click", event => { event.preventDefault(); copyText("toldibenjamin@gmail.com"); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { closeAllSearchableSelects(); closeSettings(); } });
   document.addEventListener("click", e => { if (!(e.target instanceof Element) || e.target.closest(".language-select")) return; closeAllSearchableSelects(); });
@@ -155,6 +173,72 @@ function bind() {
 
 function loadSettings() { try { const raw = localStorage.getItem(STORAGE_KEY); const parsed = raw ? JSON.parse(raw) : {}; return { theme: parsed.theme === "light" ? "light" : "dark", liveTranslate: parsed.liveTranslate !== false }; } catch { return { theme: "dark", liveTranslate: true }; } }
 function saveSettings() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings)); }
+function loadMemoryList(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter(item => item && typeof item === "object") : [];
+  } catch {
+    return [];
+  }
+}
+function saveMemoryList(key, list) {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {}
+}
+function loadLanguageFavorites() {
+  try {
+    const raw = localStorage.getItem(LANGUAGE_FAVORITES_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? [...new Set(parsed.filter(code => typeof code === "string"))] : [];
+  } catch {
+    return [];
+  }
+}
+function saveLanguageFavorites() {
+  try {
+    localStorage.setItem(LANGUAGE_FAVORITES_STORAGE_KEY, JSON.stringify(state.languageFavorites));
+  } catch {}
+}
+function isFavoriteLanguage(code) {
+  return state.languageFavorites.includes(code);
+}
+function favoriteLanguageOrder(code) {
+  const index = state.languageFavorites.indexOf(code);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+function sortLanguageOptions(options, aiValue, selectedValue = "") {
+  return [...options].sort((a, b) => {
+    if (aiValue) {
+      if (a.value === aiValue && b.value !== aiValue) return -1;
+      if (b.value === aiValue && a.value !== aiValue) return 1;
+    }
+    const aFavorite = isFavoriteLanguage(a.value);
+    const bFavorite = isFavoriteLanguage(b.value);
+    if (aFavorite && bFavorite) return favoriteLanguageOrder(a.value) - favoriteLanguageOrder(b.value);
+    if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+    if (selectedValue) {
+      if (a.value === selectedValue && b.value !== selectedValue) return -1;
+      if (b.value === selectedValue && a.value !== selectedValue) return 1;
+    }
+    return a.textContent.localeCompare(b.textContent, "hu");
+  });
+}
+function refreshLanguageFavoriteOptions() {
+  searchableSelects().forEach(select => {
+    if (!select.hasAttribute("data-searchable-language")) return;
+    renderSearchableOptions(select, select._searchable?.search?.value || "");
+    syncSearchableSelect(select);
+  });
+}
+function toggleLanguageFavorite(code) {
+  if (!code) return;
+  if (isFavoriteLanguage(code)) state.languageFavorites = state.languageFavorites.filter(item => item !== code);
+  else state.languageFavorites = [code, ...state.languageFavorites];
+  saveLanguageFavorites();
+  refreshLanguageFavoriteOptions();
+}
 function applySettings() { document.documentElement.dataset.theme = state.settings.theme; document.documentElement.dataset.density = "compact"; document.documentElement.dataset.surface = "glass"; el.live.checked = state.settings.liveTranslate; el.themeCycle.textContent = `T\u00E9ma: ${state.settings.theme === "dark" ? "S\u00F6t\u00E9t" : "Vil\u00E1gos"}`; el.themeOptions.forEach(btn => btn.classList.toggle("is-active", btn.dataset.themeOption === state.settings.theme)); state.mic.mergeMode = "append"; }
 function cycleTheme() { state.settings.theme = state.settings.theme === "dark" ? "light" : "dark"; saveSettings(); applySettings(); }
 function openSettings() { el.settingsDrawer.classList.add("is-open"); el.settingsDrawer.setAttribute("aria-hidden", "false"); document.body.classList.add("drawer-open"); }
@@ -1033,7 +1117,7 @@ async function translateRecognizedTextNow() {
   await runTranslate(true);
 }
 
-function populateSelects() { const langs = buildLanguages(); fill(el.source, langs, true, "auto"); fill(el.target, langs, false, "hu"); fill(el.imageSource, langs, true, "auto"); fill(el.imageTarget, langs, false, "hu"); fill(el.docSource, langs, true, "auto"); fill(el.docTarget, langs, false, "hu"); fill(el.correctionSource, langs, true, "auto"); }
+function populateSelects() { const langs = buildLanguages(); fill(el.source, langs, true, "auto"); fill(el.target, langs, false, "en"); fill(el.imageSource, langs, true, "auto"); fill(el.imageTarget, langs, false, "en"); fill(el.docSource, langs, true, "auto"); fill(el.docTarget, langs, false, "en"); fill(el.correctionSource, langs, true, "auto"); }
 function buildLanguages() { return LANGS.map(code => ({ code, label: label(code) })).sort((a, b) => a.code === "auto" ? -1 : b.code === "auto" ? 1 : a.label.localeCompare(b.label, "hu")); }
 function fill(select, langs, allowAuto, value) { select.innerHTML = langs.filter(x => allowAuto || x.code !== "auto").map(x => `<option value="${x.code}">${x.label}</option>`).join(""); select.value = value; syncSearchableSelect(select); renderSearchableOptions(select, ""); }
 function label(code) { if (OVERRIDES[code]) return OVERRIDES[code]; if (!NAMES) return code.toUpperCase(); try { const c = code === "pb" ? "pt-BR" : code === "zt" ? "zh-Hant" : code; const n = NAMES.of(c); return n ? n.charAt(0).toLocaleUpperCase("hu-HU") + n.slice(1) : code.toUpperCase(); } catch { return code.toUpperCase(); } }
@@ -1135,7 +1219,9 @@ function renderSearchableOptions(select, query) {
   if (!select?._searchable) return;
   const { options, aiValue } = select._searchable;
   const searchTerm = normalizeSearch(query);
-  const matches = [...select.options].filter(option => !option.disabled && normalizeSearch(option.textContent).includes(searchTerm));
+  const allowFavorites = select.hasAttribute("data-searchable-language");
+  const matchingOptions = [...select.options].filter(option => !option.disabled && normalizeSearch(option.textContent).includes(searchTerm));
+  const matches = allowFavorites ? sortLanguageOptions(matchingOptions, aiValue, select.value) : matchingOptions;
 
   options.innerHTML = "";
 
@@ -1148,6 +1234,9 @@ function renderSearchableOptions(select, query) {
   }
 
   matches.forEach(option => {
+    const row = document.createElement("div");
+    row.className = "language-select__option-row";
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = "language-select__option";
@@ -1158,12 +1247,15 @@ function renderSearchableOptions(select, query) {
     optionLabel.textContent = option.textContent;
     button.append(optionLabel);
 
+    const optionMeta = document.createElement("span");
+    optionMeta.className = "language-select__option-meta";
     if (aiValue && option.value === aiValue) {
       const optionAi = document.createElement("span");
       optionAi.className = "language-select__option-ai";
       optionAi.textContent = "AI";
-      button.append(optionAi);
+      optionMeta.append(optionAi);
     }
+    if (optionMeta.childNodes.length) button.append(optionMeta);
 
     const selected = option.value === select.value;
     button.classList.toggle("is-selected", selected);
@@ -1175,7 +1267,33 @@ function renderSearchableOptions(select, query) {
       closeSearchableSelect(select);
       if (changed) select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    options.appendChild(button);
+
+    row.appendChild(button);
+
+    if (allowFavorites) {
+      const favoriteButton = document.createElement("button");
+      favoriteButton.type = "button";
+      favoriteButton.className = "language-select__favorite";
+      const favoriteActive = isFavoriteLanguage(option.value);
+      favoriteButton.classList.toggle("is-active", favoriteActive);
+      favoriteButton.setAttribute("aria-pressed", String(favoriteActive));
+      favoriteButton.setAttribute("aria-label", favoriteActive ? `${option.textContent} törlése a kedvencek közül` : `${option.textContent} hozzáadása a kedvencekhez`);
+
+      const favoriteIcon = document.createElement("span");
+      favoriteIcon.className = "language-select__favorite-icon";
+      favoriteIcon.textContent = favoriteActive ? "★" : "☆";
+      favoriteButton.append(favoriteIcon);
+
+      on(favoriteButton, "click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleLanguageFavorite(option.value);
+      });
+
+      row.appendChild(favoriteButton);
+    }
+
+    options.appendChild(row);
   });
 }
 
@@ -1226,6 +1344,265 @@ function normalizeSearch(value) {
 }
 
 function setMode(mode) { state.mode = mode; panel(el.modeText, el.textPanel, mode === "text"); panel(el.modeImage, el.imagePanel, mode === "image"); panel(el.modeDocument, el.documentPanel, mode === "document"); if (mode !== "text") cancelMicCapture(true); refreshMicUi(); }
+function previewText(value, max = 92) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatMemoryTimestamp(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  return new Intl.DateTimeFormat("hu-HU", sameDay
+    ? { hour: "2-digit", minute: "2-digit" }
+    : { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }
+  ).format(date);
+}
+
+function translationSignature(item) {
+  return JSON.stringify([
+    String(item?.sourceText || "").trim(),
+    item?.sourceLang || "",
+    item?.targetLang || "",
+    String(item?.translatedText || "").trim()
+  ]);
+}
+
+function buildTranslationEntry(service = "") {
+  const sourceText = String(el.sourceText?.value || "").trim();
+  const translatedText = renderedText();
+  if (!sourceText || !translatedText) return null;
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    sourceText,
+    translatedText,
+    sourceLang: el.source.value,
+    targetLang: el.target.value,
+    detectedLang: state.lastDetected || (el.source.value === "auto" ? detect(sourceText) : el.source.value),
+    service,
+    timestamp: new Date().toISOString()
+  };
+}
+
+function saveHistoryState() {
+  saveMemoryList(HISTORY_STORAGE_KEY, state.history);
+}
+
+function saveFavoritesState() {
+  saveMemoryList(FAVORITES_STORAGE_KEY, state.favorites);
+}
+
+function findFavoriteBySignature(item) {
+  const signature = translationSignature(item);
+  return state.favorites.find(entry => translationSignature(entry) === signature) || null;
+}
+
+function getCurrentFavorite() {
+  const current = buildTranslationEntry();
+  return current ? findFavoriteBySignature(current) : null;
+}
+
+function syncFavoriteButton() {
+  if (!el.favoriteTranslation || !el.favoriteTranslationIcon || !el.favoriteTranslationLabel) return;
+  const current = buildTranslationEntry();
+  const isActive = !!(current && findFavoriteBySignature(current));
+  el.favoriteTranslation.classList.toggle("is-active", isActive);
+  el.favoriteTranslation.setAttribute("aria-pressed", String(isActive));
+  el.favoriteTranslationIcon.innerHTML = isActive ? "&#9733;" : "&#9734;";
+  el.favoriteTranslationLabel.textContent = isActive ? "Mentve" : "Mentés";
+  el.favoriteTranslation.disabled = !current;
+}
+
+function renderMemoryEmpty(kind) {
+  const title = kind === "favorites" ? "Még nincs mentett fordítás." : "Még nincs előzmény.";
+  const body = kind === "favorites"
+    ? "A csillaggal megjelölt fordítások itt maradnak kéznél."
+    : "Az új fordítások automatikusan ide kerülnek, és egy kattintással visszatölthetők.";
+  return `
+    <div class="memory-empty">
+      <div class="memory-empty__icon" aria-hidden="true">${kind === "favorites" ? "★" : "↺"}</div>
+      <p class="memory-empty__title">${title}</p>
+      <p class="memory-empty__body">${body}</p>
+    </div>
+  `;
+}
+
+function renderMemoryItem(item, listName) {
+  const favoriteActive = !!findFavoriteBySignature(item);
+  const langFrom = label(item.detectedLang || item.sourceLang || "auto");
+  const langTo = label(item.targetLang || "hu");
+  return `
+    <article class="memory-item" data-id="${escapeHtml(item.id)}" data-list="${escapeHtml(listName)}">
+      <button class="memory-item__main" type="button" data-action="load" data-id="${escapeHtml(item.id)}" data-list="${escapeHtml(listName)}">
+        <div class="memory-item__top">
+          <span class="memory-item__langs">${escapeHtml(langFrom)} → ${escapeHtml(langTo)}</span>
+          <time class="memory-item__time" datetime="${escapeHtml(item.timestamp)}">${escapeHtml(formatMemoryTimestamp(item.timestamp))}</time>
+        </div>
+        <p class="memory-item__source">${escapeHtml(previewText(item.sourceText, 80))}</p>
+        <p class="memory-item__translated">${escapeHtml(previewText(item.translatedText, 96))}</p>
+      </button>
+
+      <div class="memory-item__actions">
+        <button class="memory-chip memory-chip--star${favoriteActive ? " is-active" : ""}" type="button" data-action="favorite" data-id="${escapeHtml(item.id)}" data-list="${escapeHtml(listName)}" aria-pressed="${favoriteActive}" aria-label="Mentés kedvencekhez">
+          ${favoriteActive ? "★" : "☆"}
+        </button>
+        <button class="memory-chip" type="button" data-action="delete" data-id="${escapeHtml(item.id)}" data-list="${escapeHtml(listName)}">
+          Törlés
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderHistoryList() {
+  if (!el.historyList) return;
+  el.historyList.innerHTML = state.history.length
+    ? state.history.map(item => renderMemoryItem(item, "history")).join("")
+    : renderMemoryEmpty("history");
+}
+
+function renderFavoritesList() {
+  if (!el.favoritesList) return;
+  el.favoritesList.innerHTML = state.favorites.length
+    ? state.favorites.map(item => renderMemoryItem(item, "favorites")).join("")
+    : renderMemoryEmpty("favorites");
+}
+
+function renderMemoryPanels() {
+  renderHistoryList();
+  renderFavoritesList();
+  if (el.clearHistory) el.clearHistory.disabled = !state.history.length;
+  if (el.clearFavorites) el.clearFavorites.disabled = !state.favorites.length;
+  syncFavoriteButton();
+}
+
+function upsertHistoryEntry(item) {
+  if (!item) return;
+  const signature = translationSignature(item);
+  const existing = state.history.find(entry => translationSignature(entry) === signature);
+  const nextEntry = existing ? { ...existing, ...item, id: existing.id, timestamp: item.timestamp } : item;
+  state.history = [nextEntry, ...state.history.filter(entry => entry.id !== nextEntry.id && translationSignature(entry) !== signature)].slice(0, MAX_HISTORY_ITEMS);
+  saveHistoryState();
+  renderMemoryPanels();
+}
+
+function queueHistorySave(item, immediate = false) {
+  clearTimeout(state.historySaveTimer);
+  if (!item) return;
+  if (immediate) {
+    upsertHistoryEntry(item);
+    return;
+  }
+  state.historySaveTimer = window.setTimeout(() => upsertHistoryEntry(item), HISTORY_SAVE_DELAY_MS);
+}
+
+function toggleFavoriteEntry(item) {
+  if (!item) return;
+  const existing = findFavoriteBySignature(item);
+  if (existing) {
+    state.favorites = state.favorites.filter(entry => entry.id !== existing.id);
+    saveFavoritesState();
+    renderMemoryPanels();
+    setStatus("Eltávolítva a mentettek közül", "success");
+    return;
+  }
+  const favoriteEntry = { ...item, id: existing?.id || `fav-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+  state.favorites = [favoriteEntry, ...state.favorites.filter(entry => translationSignature(entry) !== translationSignature(item))].slice(0, MAX_FAVORITES_ITEMS);
+  saveFavoritesState();
+  renderMemoryPanels();
+  setStatus("Elmentve a kedvencekhez", "success");
+}
+
+function toggleCurrentFavorite() {
+  const item = buildTranslationEntry();
+  if (!item) {
+    setStatus("Még nincs mit menteni", "error");
+    return;
+  }
+  toggleFavoriteEntry(item);
+}
+
+function loadSavedTranslation(entry) {
+  if (!entry) return;
+  setMode("text");
+  setTextSubmode("translate");
+  clearTimeout(state.historySaveTimer);
+  cancelMicCapture(true);
+  el.source.value = entry.sourceLang || "auto";
+  el.target.value = entry.targetLang || "hu";
+  syncSearchableSelect(el.source);
+  syncSearchableSelect(el.target);
+  el.sourceText.value = entry.sourceText || "";
+  state.lastDetected = entry.detectedLang || entry.sourceLang || "";
+  el.translatedText.textContent = entry.translatedText || PLACEHOLDER_TEXT;
+  el.translatedText.classList.remove("is-loading");
+  updateCounter();
+  updateHint();
+  el.translationMeta.textContent = `${label(entry.detectedLang || entry.sourceLang || "auto")} -> ${label(entry.targetLang || "hu")} / Korábbi mentés`;
+  el.connectionState.textContent = `Betöltve: ${time(entry.timestamp)}`;
+  setStatus("Fordítás betöltve", "success");
+  refreshMicUi();
+  syncFavoriteButton();
+}
+
+function deleteHistoryEntry(id) {
+  state.history = state.history.filter(item => item.id !== id);
+  saveHistoryState();
+  renderMemoryPanels();
+}
+
+function deleteFavoriteEntry(id) {
+  state.favorites = state.favorites.filter(item => item.id !== id);
+  saveFavoritesState();
+  renderMemoryPanels();
+}
+
+function clearHistoryList() {
+  if (!state.history.length) return setStatus("Nincs törölhető előzmény", "error");
+  state.history = [];
+  saveHistoryState();
+  renderMemoryPanels();
+  setStatus("Előzmények törölve", "success");
+}
+
+function clearFavoritesList() {
+  if (!state.favorites.length) return setStatus("Nincs törölhető mentett elem", "error");
+  state.favorites = [];
+  saveFavoritesState();
+  renderMemoryPanels();
+  setStatus("Mentettek törölve", "success");
+}
+
+function resolveMemoryEntry(listName, id) {
+  const list = listName === "favorites" ? state.favorites : state.history;
+  return list.find(item => item.id === id) || null;
+}
+
+function handleMemoryListClick(event) {
+  const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
+  if (!target) return;
+  const id = target.getAttribute("data-id");
+  const action = target.getAttribute("data-action");
+  const listName = target.getAttribute("data-list") || "history";
+  if (!id || !action) return;
+  const entry = resolveMemoryEntry(listName, id);
+  if (action === "load") return loadSavedTranslation(entry);
+  if (action === "favorite") return toggleFavoriteEntry(entry);
+  if (action === "delete") {
+    if (listName === "favorites") deleteFavoriteEntry(id);
+    else deleteHistoryEntry(id);
+  }
+}
+
 function panel(button, pane, active) { button.classList.toggle("is-active", active); button.setAttribute("aria-selected", String(active)); pane.hidden = !active; }
 function setTextSubmode(mode) {
   state.textSubmode = mode === "correct" ? "correct" : "translate";
@@ -1238,14 +1615,16 @@ function setTextSubmode(mode) {
     scheduleCorrection(true);
     setStatus("Sz\u00F6vegjav\u00EDt\u00E1s m\u00F3d", "");
     refreshMicUi();
+    syncFavoriteButton();
     return;
   }
   refreshMicUi();
+  syncFavoriteButton();
   setStatus("K\u00E9sz a ford\u00EDt\u00E1sra", "");
 }
 function updateCounter() { const raw = el.sourceText.value; const trimmed = raw.trim(); el.sourceCounter.textContent = `${raw.length} karakter / ${trimmed ? trimmed.split(/\s+/).length : 0} sz\u00F3`; }
 function updateHint() { if (el.source.value !== "auto") { el.detectedLanguage.textContent = `Forr\u00E1s: ${label(el.source.value)}`; return; } const detected = detect(el.sourceText.value); el.detectedLanguage.textContent = detected ? `Felismerve: ${label(detected)}` : "Automatikus felismer\u00E9s akt\u00EDv"; }
-function resetText() { el.translatedText.textContent = PLACEHOLDER_TEXT; el.translationMeta.textContent = state.settings.liveTranslate ? "V\u00E1lassz nyelvet, majd kezdd el a sz\u00F6veget." : "Az automatikus m\u00F3d ki van kapcsolva. Kattints a Ford\u00EDt\u00E1s gombra."; el.connectionState.textContent = "Publikus ford\u00EDt\u00F3 szolg\u00E1ltat\u00E1sokkal"; el.translatedText.classList.remove("is-loading", "is-fresh"); setStatus("K\u00E9sz a ford\u00EDt\u00E1sra", ""); }
+function resetText() { el.translatedText.textContent = PLACEHOLDER_TEXT; el.translationMeta.textContent = state.settings.liveTranslate ? "V\u00E1lassz nyelvet, majd kezdd el a sz\u00F6veget." : "Az automatikus m\u00F3d ki van kapcsolva. Kattints a Ford\u00EDt\u00E1s gombra."; el.connectionState.textContent = "Publikus ford\u00EDt\u00F3 szolg\u00E1ltat\u00E1sokkal"; el.translatedText.classList.remove("is-loading", "is-fresh"); syncFavoriteButton(); setStatus("K\u00E9sz a ford\u00EDt\u00E1sra", ""); }
 function renderedText() { const text = el.translatedText.textContent.trim(); return text === PLACEHOLDER_TEXT ? "" : text; }
 function renderedCorrectionText() { const text = String(el.correctedText?.textContent || "").trim(); return text === PLACEHOLDER_CORRECTION ? "" : text; }
 function resetCorrectionEditor() { if (!el.correctionInput || !el.correctionCounter) return; el.correctionInput.value = ""; updateCorrectionCounter(); resetCorrection(); }
@@ -1338,12 +1717,12 @@ function normalizeCorrectionError(error) {
   if (/quota|billing|plan/i.test(message)) return "Az OpenAI keret vagy fizet\u00E9s most nem el\u00E9rhet\u0151. A helyi jav\u00EDt\u00E1s l\u00E1tszik.";
   return message;
 }
-function clearText() { state.req += 1; cancelMicCapture(true); state.mic.baseText = ""; el.sourceText.value = ""; updateCounter(); updateHint(); resetText(); refreshMicUi(); }
+function clearText() { state.req += 1; clearTimeout(state.historySaveTimer); cancelMicCapture(true); state.mic.baseText = ""; el.sourceText.value = ""; updateCounter(); updateHint(); resetText(); refreshMicUi(); }
 function clearCorrectionText() { if (!el.correctionInput) return; el.correctionInput.value = ""; updateCorrectionCounter(); resetCorrection(); setStatus("Jav\u00EDtand\u00F3 sz\u00F6veg t\u00F6r\u00F6lve", "success"); }
-function swapText() { const s = el.source.value; const t = el.target.value; const src = el.sourceText.value; const out = renderedText(); el.source.value = s === "auto" ? t : t; el.target.value = s === "auto" ? (state.lastDetected || "en") : s; syncSearchableSelect(el.source); syncSearchableSelect(el.target); if (out) { el.sourceText.value = out; el.translatedText.textContent = src || PLACEHOLDER_TEXT; } updateCounter(); updateHint(); scheduleTranslate(); }
+function swapText() { const s = el.source.value; const t = el.target.value; const src = el.sourceText.value; const out = renderedText(); el.source.value = s === "auto" ? t : t; el.target.value = s === "auto" ? (state.lastDetected || "en") : s; syncSearchableSelect(el.source); syncSearchableSelect(el.target); if (out) { el.sourceText.value = out; el.translatedText.textContent = src || PLACEHOLDER_TEXT; } updateCounter(); updateHint(); syncFavoriteButton(); scheduleTranslate(); }
 function swapSelects(source, target, allowAuto) { const a = source.value; const b = target.value; source.value = allowAuto && b === "auto" ? "hu" : b; target.value = a === "auto" ? "en" : a; syncSearchableSelect(source); syncSearchableSelect(target); }
 function scheduleTranslate() { if (!state.settings.liveTranslate) return; clearTimeout(state.timer); state.timer = window.setTimeout(() => void runTranslate(false), 350); }
-async function runTranslate(force) { const text = el.sourceText.value.trim(); if (!text) return resetText(); if (!force && !state.settings.liveTranslate) return; const req = ++state.req; setLoading(true); setStatus("Ford\u00EDt\u00E1s folyamatban", "busy"); try { const result = await translateLarge(text, el.source.value, el.target.value); if (req !== state.req) return; state.lastDetected = result.detectedLanguage || state.lastDetected; el.translatedText.textContent = result.translatedText || PLACEHOLDER_TEXT; el.translatedText.classList.remove("is-loading", "is-fresh"); void el.translatedText.offsetWidth; el.translatedText.classList.add("is-fresh"); el.translationMeta.textContent = `${label(result.detectedLanguage || el.source.value)} -> ${label(el.target.value)} / ${result.service}`; el.connectionState.textContent = `Friss\u00EDtve: ${time(new Date())}`; updateHint(); setStatus("Ford\u00EDt\u00E1s k\u00E9sz", "success"); } catch { if (req !== state.req) return; el.translatedText.textContent = "A ford\u00EDt\u00E1s most nem \u00E9rhet\u0151 el. Pr\u00F3b\u00E1ld meg k\u00E9s\u0151bb \u00FAjra."; el.translationMeta.textContent = "Nem siker\u00FClt el\u00E9rni a ford\u00EDt\u00F3 szolg\u00E1ltat\u00E1st."; el.connectionState.textContent = "Kapcsol\u00F3d\u00E1si hiba"; setStatus("Ford\u00EDt\u00E1si hiba", "error"); } finally { if (req === state.req) setLoading(false); } }
+async function runTranslate(force) { const text = el.sourceText.value.trim(); if (!text) { clearTimeout(state.historySaveTimer); return resetText(); } if (!force && !state.settings.liveTranslate) return; const req = ++state.req; setLoading(true); setStatus("Ford\u00EDt\u00E1s folyamatban", "busy"); try { const result = await translateLarge(text, el.source.value, el.target.value); if (req !== state.req) return; state.lastDetected = result.detectedLanguage || state.lastDetected; el.translatedText.textContent = result.translatedText || PLACEHOLDER_TEXT; el.translatedText.classList.remove("is-loading", "is-fresh"); void el.translatedText.offsetWidth; el.translatedText.classList.add("is-fresh"); el.translationMeta.textContent = `${label(result.detectedLanguage || el.source.value)} -> ${label(el.target.value)} / ${result.service}`; el.connectionState.textContent = `Friss\u00EDtve: ${time(new Date())}`; updateHint(); queueHistorySave(buildTranslationEntry(result.service), !!force); syncFavoriteButton(); setStatus("Ford\u00EDt\u00E1s k\u00E9sz", "success"); } catch { if (req !== state.req) return; el.translatedText.textContent = "A ford\u00EDt\u00E1s most nem \u00E9rhet\u0151 el. Pr\u00F3b\u00E1ld meg k\u00E9s\u0151bb \u00FAjra."; el.translationMeta.textContent = "Nem siker\u00FClt el\u00E9rni a ford\u00EDt\u00F3 szolg\u00E1ltat\u00E1st."; el.connectionState.textContent = "Kapcsol\u00F3d\u00E1si hiba"; syncFavoriteButton(); setStatus("Ford\u00EDt\u00E1si hiba", "error"); } finally { if (req === state.req) setLoading(false); } }
 function setLoading(loading) { el.translate.disabled = loading; el.translate.textContent = loading ? "Ford\u00EDt\u00E1s..." : "Ford\u00EDt\u00E1s"; el.translatedText.classList.toggle("is-loading", loading); }
 async function pasteText() { try { const text = await navigator.clipboard.readText(); if (!text) return setStatus("A v\u00E1g\u00F3lap most \u00FCres", "error"); el.sourceText.value = text; updateCounter(); updateHint(); scheduleTranslate(); setStatus("Sz\u00F6veg beillesztve", "success"); } catch { setStatus("A beilleszt\u00E9s nem siker\u00FClt", "error"); } }
 async function copyText(text) { const value = String(text || "").trim(); if (!value) return setStatus("Nincs mit m\u00E1solni", "error"); try { await navigator.clipboard.writeText(value); setStatus("Kim\u00E1solva a v\u00E1g\u00F3lapra", "success"); } catch { const t = document.createElement("textarea"); t.value = value; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); setStatus("Kim\u00E1solva a v\u00E1g\u00F3lapra", "success"); } catch { setStatus("A m\u00E1sol\u00E1s nem siker\u00FClt", "error"); } finally { t.remove(); } } }

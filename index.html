@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css?v=20260322-1958">
+  <link rel="stylesheet" href="styles.css?v=20260324-0007">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -126,12 +126,17 @@
             </div>
 
             <label class="sr-only" for="source-text">Forrásszöveg</label>
+            <div class="source-text-wrap">
             <textarea
               id="source-text"
               rows="10"
               maxlength="4000"
               placeholder="Írj vagy illessz be szöveget. Ha az automatikus fordítás aktív, már gépelés közben is frissül a szöveg."
             ></textarea>
+              <div class="source-text-wrap__meta">
+                <span id="source-counter">0 karakter</span>
+              </div>
+            </div>
 
             <div class="mic-toolbar" aria-label="Mikrofon vezérlés">
               <div class="mic-toolbar__top">
@@ -157,7 +162,6 @@
             </div>
 
             <div class="pane__footer">
-              <span id="source-counter">0 karakter</span>
               <span id="detected-language" class="hint">Automatikus felismerés készen áll</span>
             </div>
           </section>
@@ -170,6 +174,10 @@
               </div>
 
               <div class="pane__actions">
+                <button id="favorite-translation" class="text-button text-button--star" type="button" aria-pressed="false" aria-label="Fordítás mentése a kedvencekhez">
+                  <span id="favorite-translation-icon" class="text-button__star" aria-hidden="true">&#9734;</span>
+                  <span id="favorite-translation-label">Mentés</span>
+                </button>
                 <button id="speak-output" class="text-button" type="button">Felolvasás</button>
               </div>
             </div>
@@ -189,6 +197,38 @@
             </div>
           </section>
         </div>
+
+        <section class="memory-board" aria-label="Fordítási előzmények és kedvencek">
+          <article class="memory-card">
+            <div class="memory-card__header">
+              <div>
+                <p class="pane__label">Előzmények</p>
+                <h3>Legutóbbi fordítások</h3>
+              </div>
+
+              <button id="clear-history" class="text-button text-button--memory" type="button">
+                Összes törlése
+              </button>
+            </div>
+
+            <div id="history-list" class="memory-list" aria-live="polite"></div>
+          </article>
+
+          <article class="memory-card">
+            <div class="memory-card__header">
+              <div>
+                <p class="pane__label">Mentettek</p>
+                <h3>Kedvenc fordítások</h3>
+              </div>
+
+              <button id="clear-favorites" class="text-button text-button--memory" type="button">
+                Lista törlése
+              </button>
+            </div>
+
+            <div id="favorites-list" class="memory-list" aria-live="polite"></div>
+          </article>
+        </section>
 
         </div>
 
@@ -261,16 +301,16 @@
               </div>
 
               <label class="sr-only" for="correction-input">Jav&#237;tand&#243; sz&#246;veg</label>
-              <textarea
-                id="correction-input"
-                rows="10"
-                maxlength="4000"
-                placeholder="&#205;rd be ide a sz&#246;veget, &#233;s a m&#225;sik oldalon jav&#237;tva megjelenik."
-              ></textarea>
-
-              <div class="pane__footer">
-                <span id="correction-counter">0 karakter</span>
-                <span class="hint">Gyors el&#337;n&#233;zet akt&#237;v, a teljes AI jav&#237;t&#225;shoz nyomd meg a Jav&#237;t&#225;s gombot</span>
+              <div class="source-text-wrap source-text-wrap--correction">
+                <textarea
+                  id="correction-input"
+                  rows="10"
+                  maxlength="4000"
+                  placeholder="&#205;rd be ide a sz&#246;veget, &#233;s a m&#225;sik oldalon jav&#237;tva megjelenik."
+                ></textarea>
+                <div class="source-text-wrap__meta">
+                  <span id="correction-counter">0 karakter / 0 szó</span>
+                </div>
               </div>
             </section>
 
@@ -564,11 +604,82 @@
 
       </section>
 
+      <section class="settings-group settings-group--trust" aria-label="Megbízhatóság és biztonság">
+        <div class="trust-panel__meta">
+          <span class="trust-badge">AI Powered</span>
+          <span class="trust-badge trust-badge--muted">Beta</span>
+        </div>
+
+        <div class="settings-group__heading trust-panel__heading">
+          <h3>Miért megbízható a Nova Fordító?</h3>
+          <p>Gyors, modern és átlátható működés, tiszta visszajelzésekkel.</p>
+        </div>
+
+        <div class="trust-status" aria-live="polite">
+          <span class="trust-status__dot" aria-hidden="true"></span>
+          <strong>Rendszer állapot:</strong>
+          <span>Működik</span>
+        </div>
+
+        <div class="trust-grid">
+          <article class="trust-item">
+            <span class="trust-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M7 10V7.5a5 5 0 0 1 10 0V10" />
+                <rect x="5" y="10" width="14" height="10" rx="3" />
+                <path d="M12 14v2.8" />
+              </svg>
+            </span>
+            <div class="trust-item__body">
+              <strong>Biztonságos használat</strong>
+              <p>A mentett adatok helyben maradnak a böngészőben.</p>
+            </div>
+          </article>
+
+          <article class="trust-item">
+            <span class="trust-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M13 2 6 13h5l-1 9 8-12h-5l0-8Z" />
+              </svg>
+            </span>
+            <div class="trust-item__body">
+              <strong>Gyors és valós idejű feldolgozás</strong>
+              <p>Azonnali fordítás és javítás, kényelmes visszajelzéssel.</p>
+            </div>
+          </article>
+
+          <article class="trust-item">
+            <span class="trust-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M9 5.5A3.5 3.5 0 0 1 12.5 2H13a4 4 0 0 1 4 4v1.2a3.2 3.2 0 0 0 1.1 2.4 3.6 3.6 0 0 1-2.4 6.4H15l-3 3v-3H9.8A4.8 4.8 0 0 1 5 11.2 5.7 5.7 0 0 1 9 5.5Z" />
+                <path d="M9.5 9.5h.01M12.5 9.5h.01M15.5 9.5h.01" />
+              </svg>
+            </span>
+            <div class="trust-item__body">
+              <strong>AI alapú feldolgozás</strong>
+              <p>Modern algoritmusok segítik a fordítást és a javítást.</p>
+            </div>
+          </article>
+
+          <article class="trust-item">
+            <span class="trust-item__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <rect x="7" y="2.5" width="10" height="19" rx="2.8" />
+                <path d="M10.5 5.5h3M11.25 18.25h1.5" />
+              </svg>
+            </span>
+            <div class="trust-item__body">
+              <strong>Minden eszközön működik</strong>
+              <p>Mobilon és gépen is optimalizált, letisztult felülettel.</p>
+            </div>
+          </article>
+        </div>
+      </section>
     </aside>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js?v=20260322-2007"></script>
+  <script src="script.js?v=20260323-0021"></script>
 </body>
 </html>
 
