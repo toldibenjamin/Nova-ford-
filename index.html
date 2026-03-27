@@ -30,7 +30,7 @@
     href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap"
     rel="stylesheet"
   >
-  <link rel="stylesheet" href="styles.css?v=20260324-0007">
+<link rel="stylesheet" href="styles.css?v=20260325-1143">
 </head>
 <body>
   <div class="background-layer" aria-hidden="true">
@@ -66,6 +66,10 @@
 
       <div class="topbar__actions">
         <div id="status-pill" class="status-pill" aria-live="polite">Kész a fordításra</div>
+        <button id="streak-trigger" class="streak-chip" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="streak-panel" aria-label="Streak megnyitása">
+          <span class="streak-chip__icon" aria-hidden="true">&#128293;</span>
+          <span id="streak-trigger-value" class="streak-chip__value">0</span>
+        </button>
         <button id="theme-cycle" class="icon-button" type="button" aria-label="Téma gyorsváltása">
           Téma
         </button>
@@ -121,7 +125,7 @@
 
               <div class="pane__actions">
                 <button id="voice-input" class="text-button text-button--mic" type="button" aria-pressed="false">Mikrofon</button>
-                <button id="clear-input" class="text-button" type="button">Törlés</button>
+                <button id="clear-input" class="text-button text-button--danger" type="button">Törlés</button>
               </div>
             </div>
 
@@ -146,9 +150,6 @@
                   <span id="mic-device-badge" class="mic-device-badge" hidden></span>
                 </div>
 
-                <button id="mic-translate-now" class="text-button text-button--accent mic-toolbar__translate" type="button">
-                  Fordítás most
-                </button>
               </div>
 
               <div class="mic-toolbar__actions" aria-label="Mikrofon beillesztési mód">
@@ -270,15 +271,15 @@
 
           <div class="correction-options" aria-label="Javítási opciók">
             <label class="segment correction-toggle">
-              <input id="option-accents" type="checkbox" checked>
+              <input id="option-accents" type="checkbox">
               <span>Csak &#233;kezetp&#243;tl&#225;s</span>
             </label>
             <label class="segment correction-toggle">
-              <input id="option-spelling" type="checkbox" checked>
+              <input id="option-spelling" type="checkbox">
               <span>Teljes helyes&#237;r&#225;s-jav&#237;t&#225;s</span>
             </label>
             <label class="segment correction-toggle">
-              <input id="option-punctuation" type="checkbox" checked>
+              <input id="option-punctuation" type="checkbox">
               <span>&#205;r&#225;sjelek jav&#237;t&#225;sa</span>
             </label>
             <label class="segment correction-toggle">
@@ -296,7 +297,7 @@
                 </div>
 
               <div class="pane__actions">
-                  <button id="clear-correction" class="text-button" type="button">T&#246;rl&#233;s</button>
+                  <button id="clear-correction" class="text-button text-button--danger" type="button">T&#246;rl&#233;s</button>
                 </div>
               </div>
 
@@ -387,7 +388,7 @@
 
                 <div class="image-dropzone__actions">
                   <button id="replace-image" class="text-button" type="button">Másik kép</button>
-                  <button id="remove-image" class="text-button" type="button">Törlés</button>
+                  <button id="remove-image" class="text-button text-button--danger" type="button">Törlés</button>
                 </div>
               </div>
 
@@ -463,7 +464,7 @@
 
                 <div class="document-dropzone__actions">
                   <button id="replace-document" class="text-button" type="button">Másik fájl</button>
-                  <button id="remove-document" class="text-button" type="button">Törlés</button>
+                  <button id="remove-document" class="text-button text-button--danger" type="button">Törlés</button>
                 </div>
               </div>
 
@@ -510,10 +511,38 @@
       </div>
       <aside class="workspace-side" aria-label="Kapcsolat blokk">
       <section class="contact-dock" aria-label="Elérhetőség">
-        <div class="contact-card panel">
+        <button
+          id="contact-dock-peek"
+          class="contact-dock__peek"
+          type="button"
+          aria-label="Kapcsolat panel megnyitĂˇsa"
+          aria-expanded="false"
+          hidden
+        >
+          <span class="contact-dock__peek-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <path d="M9 5l7 7-7 7"></path>
+            </svg>
+          </span>
+          <span class="contact-dock__peek-text">Kapcsolat</span>
+        </button>
+
+        <div id="contact-card" class="contact-card panel">
           <div class="contact-card__glow" aria-hidden="true"></div>
           <div class="contact-card__header">
             <p class="eyebrow">Kapcsolat</p>
+            <button
+              id="contact-dock-toggle"
+              class="contact-dock__toggle"
+              type="button"
+              aria-label="Kapcsolat panel bezĂˇrĂˇsa"
+              aria-controls="contact-card"
+              aria-expanded="true"
+            >
+              <svg viewBox="0 0 24 24" role="img" focusable="false" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7"></path>
+              </svg>
+            </button>
           </div>
 
           <div class="contact-list">
@@ -566,7 +595,7 @@
   <div id="settings-drawer" class="settings-drawer" aria-hidden="true">
     <button id="settings-overlay" class="settings-drawer__overlay" type="button" aria-label="Beállítások bezárása"></button>
 
-    <aside class="settings-panel panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <aside id="settings-panel" class="settings-panel panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="settings-panel__header">
         <div>
           <p class="eyebrow">Testreszabás</p>
@@ -577,34 +606,322 @@
         </button>
       </div>
 
-      <section class="settings-group">
+      <section id="settings-section-appearance" class="settings-group settings-group--control settings-group--display" data-settings-section="appearance" data-settings-section-label="Megjelenés">
+        <div class="settings-group__meta">
+          <div class="settings-group__meta-main">
+            <span class="settings-group__index">01</span>
+            <button class="settings-group__toggle" type="button" data-settings-section-toggle="appearance" aria-expanded="true" aria-controls="settings-section-appearance-body" aria-label="Megjelenés szekció összecsukása">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="m6.5 9.5 5.5 5 5.5-5" />
+              </svg>
+            </button>
+            <span class="settings-group__eyebrow">Megjelenés</span>
+          </div>
+        </div>
+        <div id="settings-section-appearance-body" class="settings-group__body" data-settings-section-body>
         <div class="settings-group__heading">
           <h3>Megjelenés</h3>
-          <p>Válaszd ki, hogyan nézzen ki az alkalmazás.</p>
+          <p>Az alkalmazás kinézete és vizuális hangulata.</p>
         </div>
 
-        <div class="segmented-control" id="theme-control" role="group" aria-label="Téma beállítás">
-          <button class="segment" type="button" data-theme-option="light">Világos</button>
-          <button class="segment" type="button" data-theme-option="dark">Sötét</button>
+        <div class="settings-display-grid">
+          <div class="settings-control-surface">
+            <div class="settings-control-surface__header">
+              <strong class="settings-control-surface__label">Téma mód</strong>
+            </div>
+
+            <div class="segmented-control segmented-control--theme-modes" id="theme-mode-control" role="group" aria-label="Téma mód">
+              <button class="segment segment--theme-mode" type="button" data-theme-mode-option="light">Világos</button>
+              <button class="segment segment--theme-mode" type="button" data-theme-mode-option="dark">Sötét</button>
+              <button class="segment segment--theme-mode" type="button" data-theme-mode-option="amoled">Deep Dark</button>
+            </div>
+          </div>
+
+          <div class="settings-control-surface settings-control-surface--accent">
+            <div class="settings-control-surface__header">
+              <strong class="settings-control-surface__label">Színstílus</strong>
+            </div>
+
+            <div class="accent-theme-grid" role="group" aria-label="Színstílus">
+              <button class="accent-theme-card" type="button" data-accent-option="base">
+                <span class="accent-theme-card__swatch accent-theme-card__swatch--base" aria-hidden="true"></span>
+                <strong>Alap</strong>
+                <small>Klasszikus Nova</small>
+              </button>
+              <button class="accent-theme-card" type="button" data-accent-option="neon">
+                <span class="accent-theme-card__swatch accent-theme-card__swatch--neon" aria-hidden="true"></span>
+                <strong>Neon</strong>
+                <small>Élénk, futurisztikus</small>
+              </button>
+              <button class="accent-theme-card" type="button" data-accent-option="cyber">
+                <span class="accent-theme-card__swatch accent-theme-card__swatch--cyber" aria-hidden="true"></span>
+                <strong>Cyber</strong>
+                <small>Lila techno hangulat</small>
+              </button>
+              <button class="accent-theme-card" type="button" data-accent-option="green">
+                <span class="accent-theme-card__swatch accent-theme-card__swatch--green" aria-hidden="true"></span>
+                <strong>Zöld minimal</strong>
+                <small>Letisztult és nyugodt</small>
+              </button>
+              <button class="accent-theme-card" type="button" data-accent-option="gradient">
+                <span class="accent-theme-card__swatch accent-theme-card__swatch--gradient" aria-hidden="true"></span>
+                <strong>Gradient</strong>
+                <small>Gazdag színátmenet</small>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-control-surface settings-control-surface--toggles">
+            <label class="toggle-row toggle-row--setting" for="setting-glass-effect">
+              <span>
+                <strong>Glass / blur effekt</strong>
+                <small>Áttetsző panelek és mélyebb üveg hatás.</small>
+              </span>
+              <input id="setting-glass-effect" type="checkbox">
+            </label>
+
+          </div>
+        </div>
         </div>
       </section>
 
-      <section class="settings-group">
+      <section id="settings-section-translation" class="settings-group settings-group--control settings-group--translation" data-settings-section="translation" data-settings-section-label="Fordítás">
+        <div class="settings-group__meta">
+          <div class="settings-group__meta-main">
+            <span class="settings-group__index">02</span>
+            <button class="settings-group__toggle" type="button" data-settings-section-toggle="translation" aria-expanded="true" aria-controls="settings-section-translation-body" aria-label="Fordítás szekció összecsukása">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="m6.5 9.5 5.5 5 5.5-5" />
+              </svg>
+            </button>
+            <span class="settings-group__eyebrow">Fordítás</span>
+          </div>
+        </div>
+        <div id="settings-section-translation-body" class="settings-group__body" data-settings-section-body>
         <div class="settings-group__heading">
-          <h3>Fordítás</h3>
+          <h3>Beállítások</h3>
         </div>
 
-        <label class="toggle-row" for="setting-live-translate">
-          <span>
-            <strong>Automatikus fordítás</strong>
-            <small>Gépelés közben magától frissíti az eredményt.</small>
-          </span>
-          <input id="setting-live-translate" type="checkbox">
-        </label>
+        <div class="settings-control-surface settings-control-surface--translation">
+          <label class="toggle-row toggle-row--setting" for="setting-live-translate">
+            <span>
+              <strong>Automatikus fordítás</strong>
+              <small>Gépelés közben magától frissíti az eredményt.</small>
+            </span>
+            <input id="setting-live-translate" type="checkbox">
+          </label>
+
+          <label class="toggle-row toggle-row--setting" for="feedback-include-system">
+            <span>
+              <strong>Rendszerinformáció csatolása</strong>
+              <small>A visszajelzés küldésnél böngésző-, képernyő- és témaadatokat is csatol hibakereséshez.</small>
+            </span>
+            <input id="feedback-include-system" type="checkbox">
+          </label>
+        </div>
+        </div>
 
       </section>
 
-      <section class="settings-group settings-group--trust" aria-label="Megbízhatóság és biztonság">
+      <section id="settings-section-stats" class="settings-group settings-group--stats" aria-labelledby="usage-stats-title" data-settings-section="stats" data-settings-section-label="Statisztika">
+        <div class="settings-group__meta">
+          <div class="settings-group__meta-main">
+            <span class="settings-group__index">03</span>
+            <button class="settings-group__toggle" type="button" data-settings-section-toggle="stats" aria-expanded="true" aria-controls="settings-section-stats-body" aria-label="Statisztika szekció összecsukása">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="m6.5 9.5 5.5 5 5.5-5" />
+              </svg>
+            </button>
+            <span class="settings-group__eyebrow">Statisztika</span>
+          </div>
+        </div>
+        <div id="settings-section-stats-body" class="settings-group__body" data-settings-section-body>
+        <div class="stats-panel__meta">
+          <span class="trust-badge">Analytics</span>
+          <span class="trust-badge trust-badge--muted">Csak ezen az eszközön</span>
+        </div>
+
+        <div class="settings-group__heading stats-panel__heading">
+          <div>
+            <h3 id="usage-stats-title">Használati statisztika</h3>
+            <p>Nézd meg, hogyan használod a Nova Fordítót. Az adatok helyben, a böngészőben maradnak.</p>
+          </div>
+
+          <button id="reset-usage-stats" class="text-button text-button--danger" type="button">
+            Statisztika nullázása
+          </button>
+        </div>
+
+        <div id="usage-stats-empty" class="stats-empty" hidden>
+          <div class="stats-empty__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M4 18.5h16" />
+              <path d="M6.5 15.5 10 11l3 2.5 4.5-6" />
+              <path d="M17.5 7.5h2v2" />
+            </svg>
+          </div>
+          <strong>Még nincs használati adat</strong>
+          <p>Amint fordítasz, mikrofont használsz vagy javítasz szöveget, itt megjelennek a statisztikák.</p>
+        </div>
+
+        <div id="usage-stats-content" class="stats-dashboard" hidden>
+          <div class="stats-summary-grid">
+            <article class="stats-card stats-card--hero">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 6v6l4 2" />
+                    <circle cx="12" cy="12" r="8" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Mióta használod</p>
+              </div>
+              <strong id="stats-usage-age" class="stats-card__value">Ma kezdted</strong>
+              <p id="stats-first-use" class="stats-card__meta">Első használat: -</p>
+            </article>
+
+            <article class="stats-card stats-card--session">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M12 6v6l3.5 2" />
+                    <circle cx="12" cy="12" r="7.5" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">SESSION IDŐ</p>
+              </div>
+              <strong id="stats-session-today" class="stats-card__value">0 perc</strong>
+              <p class="stats-card__meta">Mai használat</p>
+              <p id="stats-session-total" class="stats-card__submeta">Összesen: 0 perc</p>
+            </article>
+          </div>
+
+          <div class="stats-grid stats-grid--metrics">
+            <article class="stats-card stats-card--metric">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M6 7h12" />
+                    <path d="M6 12h9" />
+                    <path d="M6 17h7" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Összes fordítás</p>
+              </div>
+              <strong id="stats-translation-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">Sikeres fordítások minden fő módból.</p>
+            </article>
+
+            <article class="stats-card stats-card--metric">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M7 6h10" />
+                    <path d="M12 6v12" />
+                    <path d="M8 18h8" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Fordított karakter</p>
+              </div>
+              <strong id="stats-character-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">Összesen ennyi karakter ment át a fordítón.</p>
+            </article>
+
+            <article class="stats-card stats-card--metric">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M5 8.5h14" />
+                    <path d="M8 8.5c0 5.2 1.8 8 4 10 2.2-2 4-4.8 4-10" />
+                    <path d="M10 15h4" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Fordított szó</p>
+              </div>
+              <strong id="stats-word-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">A teljes lefordított szómennyiség.</p>
+            </article>
+
+            <article class="stats-card stats-card--metric stats-card--favorite">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M5 12c1.8-3 4.4-4.5 7-4.5s5.2 1.5 7 4.5c-1.8 3-4.4 4.5-7 4.5S6.8 15 5 12Z" />
+                    <circle cx="12" cy="12" r="2.4" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Kedvenc célnyelv</p>
+              </div>
+              <strong id="stats-favorite-language" class="stats-card__value">-</strong>
+              <p class="stats-card__meta">A legtöbbször használt célnyelv.</p>
+            </article>
+          </div>
+
+          <div class="stats-grid stats-grid--activity">
+            <article class="stats-card stats-card--activity">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <rect x="9" y="4" width="6" height="10" rx="3" />
+                    <path d="M6.5 11.5A5.5 5.5 0 0 0 12 17a5.5 5.5 0 0 0 5.5-5.5" />
+                    <path d="M12 17v3" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Mikrofon használat</p>
+              </div>
+              <strong id="stats-mic-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">Ennyiszer indítottál mikrofonos bevitel.</p>
+            </article>
+
+            <article class="stats-card stats-card--activity">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <rect x="4.5" y="6" width="15" height="12" rx="2.5" />
+                    <circle cx="9" cy="10" r="1.3" />
+                    <path d="m7.5 15 3-3 2.4 2.4L15.8 11l2.7 4" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Képes fordítás</p>
+              </div>
+              <strong id="stats-image-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">Ennyiszer fordítottál képről szöveget.</p>
+            </article>
+
+            <article class="stats-card stats-card--activity">
+              <div class="stats-card__top">
+                <span class="stats-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path d="M7 6.5h10" />
+                    <path d="M7 10.5h7" />
+                    <path d="M7 14.5h5" />
+                    <path d="m14.5 16.5 2 2 3.5-4" />
+                  </svg>
+                </span>
+                <p class="stats-card__label">Javítás használat</p>
+              </div>
+              <strong id="stats-correction-count" class="stats-card__value">0</strong>
+              <p class="stats-card__meta">Ennyiszer futtattad a szövegjavítást.</p>
+            </article>
+          </div>
+
+        </div>
+        </div>
+      </section>
+
+      <section id="settings-section-trust" class="settings-group settings-group--trust" aria-label="Megbízhatóság és biztonság" data-settings-section="trust" data-settings-section-label="Információ">
+        <div class="settings-group__meta">
+          <div class="settings-group__meta-main">
+            <span class="settings-group__index">04</span>
+            <button class="settings-group__toggle" type="button" data-settings-section-toggle="trust" aria-expanded="true" aria-controls="settings-section-trust-body" aria-label="Információ szekció összecsukása">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="m6.5 9.5 5.5 5 5.5-5" />
+              </svg>
+            </button>
+            <span class="settings-group__eyebrow">Információ</span>
+          </div>
+        </div>
+        <div id="settings-section-trust-body" class="settings-group__body" data-settings-section-body>
         <div class="trust-panel__meta">
           <span class="trust-badge">AI Powered</span>
           <span class="trust-badge trust-badge--muted">Beta</span>
@@ -674,12 +991,268 @@
             </div>
           </article>
         </div>
+        </div>
       </section>
     </aside>
   </div>
 
+  <button
+    id="language-toggle"
+    class="feedback-fab feedback-fab--language"
+    type="button"
+    aria-label="Oldal nyelvĂ©nek vĂˇltĂˇsa angolra"
+  >
+    <span class="feedback-fab__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M4 12h16" />
+        <path d="M12 4a13.5 13.5 0 0 1 0 16" />
+        <path d="M12 4a13.5 13.5 0 0 0 0 16" />
+      </svg>
+    </span>
+    <span id="language-toggle-label" class="feedback-fab__label">EN</span>
+  </button>
+
+  <button
+    id="feedback-fab"
+    class="feedback-fab"
+    type="button"
+    aria-haspopup="dialog"
+    aria-controls="feedback-dialog"
+  >
+    <span class="feedback-fab__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M7.5 8.5h9" />
+        <path d="M7.5 12h6.5" />
+        <path d="M7.5 15.5h4" />
+        <path d="M5.5 5.5h13a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 3v-3H5.5A2.5 2.5 0 0 1 3 15V8a2.5 2.5 0 0 1 2.5-2.5Z" />
+      </svg>
+    </span>
+    <span class="feedback-fab__label">Visszajelzés</span>
+  </button>
+
+  <div id="feedback-dialog" class="confirm-dialog feedback-dialog" hidden aria-hidden="true">
+    <button
+      id="feedback-dialog-overlay"
+      class="confirm-dialog__overlay feedback-dialog__overlay"
+      type="button"
+      aria-label="Visszajelzés ablak bezárása"
+    ></button>
+
+    <div
+      class="confirm-dialog__panel feedback-dialog__panel panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedback-dialog-title"
+      aria-describedby="feedback-dialog-text"
+    >
+      <div class="feedback-dialog__header">
+        <div class="feedback-dialog__badge">Segíts jobbá tenni</div>
+        <button id="feedback-dialog-close" class="feedback-dialog__close" type="button" aria-label="Visszajelzés bezárása">
+          <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="m7 7 10 10" />
+            <path d="M17 7 7 17" />
+          </svg>
+        </button>
+      </div>
+
+      <h3 id="feedback-dialog-title">Mit változtatnál a Nova Fordítón?</h3>
+      <p id="feedback-dialog-text">
+        Írd meg röviden, ha hibát találtál, valami furcsán működik, vagy van egy jó ötleted, amit érdemes lenne beépíteni.
+      </p>
+
+      <div class="feedback-type-group" role="group" aria-label="Gyors visszajelzés kategóriák">
+        <button class="feedback-chip is-active" type="button" data-feedback-type="bug" aria-pressed="true">Hiba</button>
+        <button class="feedback-chip" type="button" data-feedback-type="ui" aria-pressed="false">UI hiba</button>
+        <button class="feedback-chip" type="button" data-feedback-type="translation" aria-pressed="false">Fordítás hiba</button>
+        <button class="feedback-chip" type="button" data-feedback-type="idea" aria-pressed="false">Ötlet</button>
+      </div>
+
+      <label class="feedback-field feedback-field--message" for="feedback-message">
+        <span>Üzenet</span>
+        <textarea
+          id="feedback-message"
+          rows="6"
+          maxlength="2000"
+          required
+          placeholder="Például: a képes fordításnál néha rossz karakter kerül a végére, vagy jó lenne még egy új funkció..."
+        ></textarea>
+        <div class="feedback-field__meta">
+          <span id="feedback-message-error" class="feedback-field__error" aria-live="polite"></span>
+          <span id="feedback-message-counter" class="feedback-field__counter">0 / 2000</span>
+        </div>
+      </label>
+
+      <label class="feedback-field" for="feedback-contact">
+        <span>Elérhetőség opcionálisan</span>
+        <input
+          id="feedback-contact"
+          type="text"
+          maxlength="120"
+          placeholder="Email vagy Instagram név, ha szeretnél választ"
+        >
+      </label>
+
+      <div class="feedback-tools">
+        <div class="feedback-capture">
+          <div class="feedback-capture__header">
+            <div class="feedback-capture__copy">
+              <strong>Screenshot csatolása</strong>
+              <p>UI hibánál vagy fordítási problémánál sokat segít egy kép.</p>
+            </div>
+
+            <div class="feedback-capture__actions">
+              <input id="feedback-screenshot" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+              <button id="feedback-screenshot-trigger" class="secondary-button" type="button">Kép kiválasztása</button>
+              <button id="feedback-screenshot-clear" class="text-button" type="button" hidden>Eltávolítás</button>
+            </div>
+          </div>
+
+          <div id="feedback-screenshot-card" class="feedback-attachment" hidden>
+            <span class="feedback-attachment__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <rect x="4.5" y="6" width="15" height="12" rx="2.5" />
+                <circle cx="9" cy="10" r="1.3" />
+                <path d="m7.5 15 3-3 2.4 2.4L15.8 11l2.7 4" />
+              </svg>
+            </span>
+            <div class="feedback-attachment__meta">
+              <strong id="feedback-screenshot-name">screenshot.png</strong>
+              <small id="feedback-screenshot-size">0 KB</small>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="feedback-notice" class="feedback-notice" hidden aria-live="polite"></div>
+
+      <div class="feedback-dialog__actions">
+        <button id="feedback-send" class="primary-button" type="button">Visszajelzés küldése</button>
+      </div>
+
+    </div>
+  </div>
+
+  <button id="streak-overlay" class="streak-overlay" type="button" hidden aria-hidden="true" aria-label="Streak bezárása"></button>
+
+  <div id="streak-panel" class="streak-popover panel" hidden aria-hidden="true" role="dialog" aria-labelledby="streak-panel-title">
+    <div class="streak-popover__header">
+      <div class="streak-popover__badge">&#128293; Streak</div>
+      <button id="streak-panel-close" class="streak-popover__close" type="button" aria-label="Streak bezárása">X</button>
+    </div>
+
+    <div class="streak-popover__hero">
+      <h3 id="streak-panel-title">Folyamatos napok</h3>
+      <div class="streak-popover__count">
+        <span aria-hidden="true">&#128293;</span>
+        <strong id="streak-current-value">0</strong>
+      </div>
+      <p id="streak-current-copy">Ma indult a streaked. Ha holnap is belépsz, 1 lesz.</p>
+    </div>
+
+    <div class="streak-popover__meter" aria-hidden="true">
+      <div class="streak-popover__meter-track">
+        <span id="streak-meter-fill" class="streak-popover__meter-fill"></span>
+      </div>
+      <div class="streak-popover__meter-labels">
+        <span>Kezdés</span>
+        <span id="streak-best-copy">Legjobb: 0</span>
+        <span>7 nap</span>
+      </div>
+    </div>
+
+    <div class="streak-popover__layout">
+      <div class="streak-popover__main">
+        <div class="streak-summary-grid">
+          <article class="streak-summary-card">
+            <span class="streak-summary-card__label">Mai státusz</span>
+            <strong id="streak-status-value" class="streak-summary-card__value">Teljesítve</strong>
+            <p id="streak-status-copy" class="streak-summary-card__copy">A mai belépésed már beleszámított.</p>
+          </article>
+
+          <article class="streak-summary-card">
+            <span class="streak-summary-card__label">Következő cél</span>
+            <strong id="streak-goal-value" class="streak-summary-card__value">3 napos streak</strong>
+            <p id="streak-goal-copy" class="streak-summary-card__copy">Még 3 nap választ el tőle.</p>
+          </article>
+        </div>
+
+        <div class="streak-section">
+          <div class="streak-section__header">
+            <strong>Gyors nézet</strong>
+            <span>Ma középen</span>
+          </div>
+          <div id="streak-week" class="streak-week" aria-live="polite"></div>
+        </div>
+
+      </div>
+
+      <div class="streak-section streak-section--calendar streak-popover__calendar-column">
+        <div class="streak-calendar__header">
+          <button id="streak-month-prev" class="streak-calendar__nav" type="button" aria-label="Előző hónap">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="m14.5 6.5-5.5 5.5 5.5 5.5" />
+            </svg>
+          </button>
+          <div class="streak-calendar__title-wrap">
+            <div id="streak-month-label" class="streak-calendar__title">2026. március</div>
+            <div id="streak-month-meta" class="streak-calendar__meta">Ebben a hónapban 0 aktív nap</div>
+          </div>
+          <button id="streak-month-next" class="streak-calendar__nav" type="button" aria-label="Következő hónap">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="m9.5 6.5 5.5 5.5-5.5 5.5" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="streak-calendar__weekdays" aria-hidden="true">
+          <span>H</span>
+          <span>K</span>
+          <span>Sze</span>
+          <span>Cs</span>
+          <span>P</span>
+          <span>Szo</span>
+          <span>V</span>
+        </div>
+
+        <div id="streak-calendar" class="streak-calendar__grid" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="stats-reset-dialog" class="confirm-dialog" hidden aria-hidden="true">
+    <button
+      id="stats-reset-dialog-overlay"
+      class="confirm-dialog__overlay"
+      type="button"
+      aria-label="Megerősítő ablak bezárása"
+    ></button>
+
+    <div
+      class="confirm-dialog__panel panel"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="stats-reset-dialog-title"
+      aria-describedby="stats-reset-dialog-text"
+    >
+      <div class="confirm-dialog__badge">Veszélyes művelet</div>
+      <h3 id="stats-reset-dialog-title">Biztos szeretnéd törölni a statisztikákat?</h3>
+      <p id="stats-reset-dialog-text">
+        Csak a használati statisztika törlődik. Az előzmények, kedvencek és a többi adat megmarad.
+      </p>
+
+      <div class="confirm-dialog__actions">
+        <button id="stats-reset-cancel" class="secondary-button" type="button">Mégse</button>
+        <button id="stats-reset-confirm" class="primary-button primary-button--danger" type="button">
+          Igen, törlés
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="script.js?v=20260323-0021"></script>
+<script src="script.js?v=20260325-1158"></script>
 </body>
 </html>
 
